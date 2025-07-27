@@ -1,0 +1,62 @@
+vcs-ajiant-edr/
+├── libbpf/             # Mã nguồn vendored của libbpf (submodule)
+├── bpftool/            # Mã nguồn vendored của bpftool (submodule)
+├── vmlinux.h/          # Các header vmlinux.h cho CO-RE (submodule)
+├── tools/              # Các công cụ hỗ trợ từ libbpf-bootstrap (ví dụ: module CMake BpfObject)
+│   └── cmake/
+│       └── BpfObject.cmake
+├── src/                # Mã nguồn chính của dự án VCS-aJiant EDR
+│   ├── kernel/         # Mã eBPF chạy trong kernel-space
+│   │   ├── self_defense/
+│   │   │   ├── self_defense.bpf.c # Chương trình eBPF cho Self-Defense
+│   │   │   └── self_defense.h     # Header file định nghĩa struct, macro
+│   │   ├── ioc_block/
+│   │   │   ├── ioc_block.bpf.c    # Chương trình eBPF cho IOC Block
+│   │   │   └── ioc_block.h        # Header file định nghĩa struct, macro
+│   │   └── common/
+│   │       ├── bpf_helpers.h      # Helper functions và macro eBPF (cần thiết nếu có custom helpers)
+│   │       └── shared_types.h     # Struct và type dùng chung giữa kernel/user-space
+│   ├── user/           # Mã user-space (ứng dụng điều khiển eBPF)
+│   │   ├── agent/
+│   │   │   ├── main.c             # Điểm vào chính của agent
+│   │   │   ├── config.c
+│   │   │   ├── bpf_loader.c       # Tải và quản lý chương trình eBPF (sẽ tương tác với skeleton)
+│   │   │   ├── self_defense.c     # Logic user-space cho Self-Defense
+│   │   │   ├── ioc_block.c        # Logic user-space cho IOC Block
+│   │   │   └── network.c
+│   │   └── include/
+│   │       ├── config.h
+│   │       ├── bpf_loader.h
+│   │       └── shared_types.h     # Đồng bộ với kernel-space
+│   └── tests/          # Unit tests và integration tests (có thể chia nhỏ hơn nếu cần)
+│       ├── kernel_tests/
+│       │   ├── test_self_defense.c
+│       │   └── test_ioc_block.c
+│       └── user_tests/
+│           ├── test_config.c
+│           └── test_bpf_loader.c
+├── scripts/            # Script hỗ trợ phát triển và triển khai
+│   ├── build.sh        # Script biên dịch toàn bộ dự án (có thể gọi CMake)
+│   ├── deploy.sh
+│   ├── test.sh
+│   └── update_ioc.sh
+├── configs/            # Cấu hình dự án
+│   ├── vcs-ajiant.conf
+│   ├── ioc_list.json
+│   └── logging.conf
+├── docs/               # Tài liệu dự án
+│   ├── architecture.md
+│   ├── self_defense.md
+│   ├── ioc_block.md
+│   └── api.md
+├── examples/           # Ví dụ và PoC
+│   ├── sample_ioc.json
+│   └── attack_simulation.sh
+├── tools/              # Công cụ hỗ trợ
+│   ├── ioc_importer.py
+│   └── bpf_debugger.py
+├── CMakeLists.txt      # CMakeLists.txt chính cho toàn bộ dự án
+├── Dockerfile
+├── README.md
+├── LICENSE
+└── .gitignore
