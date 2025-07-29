@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <bpf/libbpf.h>
-#include "/home/ubuntu/lib/vcs-ajiant-edr/src/kernel/self_defense.h"                        
+#include "self_defense.h"                    
 #include "self_defense.skel.h"                  
 
 static volatile sig_atomic_t exiting = 0;
@@ -48,7 +48,7 @@ int main() {
     printf("Watching for file deletes... Ctrl+C to stop.\n");
 
     while (!exiting) {
-        err = ring_buffer__poll(rb, 100);
+        err = ring_buffer__poll(rb, 10);
         if (err < 0) {
             fprintf(stderr, "Error polling ring buffer: %d\n", err);
             break;

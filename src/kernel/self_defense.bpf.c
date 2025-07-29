@@ -2,8 +2,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include "self_defense.h"
 
-#include "self_defense.h"  // Chứa struct event
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 

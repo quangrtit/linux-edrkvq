@@ -1,0 +1,7 @@
+run test:
+    docker build -t ubuntu-2404-user:latest .
+    docker run -it \
+      -v ~/deb_test_files:/mnt/data \
+      ubuntu-2404-user:latest bash
+
+sudo docker cp /home/ubuntu/lib/vcs-ajiant-edr/build/SentinelEDR-1.0.0-linux-x86_64.deb ff902d59b87e:/root/tmp
