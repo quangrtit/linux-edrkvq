@@ -6,9 +6,7 @@
 #include <signal.h>
 #include <sys/resource.h>
 #include <time.h>
-
-#include <bpf/libbpf.h>
-#include "common.h"                    
+#include "common_user.h"                    
 #include "self_defense.skel.h"                  
 #include "policy_manager.h"
 

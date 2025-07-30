@@ -2,10 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
-#include <linux/errno.h>    
-#include <linux/limits.h>   
-#include "common.h"
+#include <unistd.h> 
+#include "common_user.h"
 #include "policy_manager.h"
 #include "cJSON.h"
 

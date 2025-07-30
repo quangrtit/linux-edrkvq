@@ -1,11 +1,8 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <bpf/bpf_core_read.h>
-#include <linux/errno.h>    
-#include <linux/limits.h>   
-#include "common.h"
-// #include "policy_manager.h"
+#include <bpf/bpf_core_read.h> 
+#include "common_kern.h"
 
 
 char LICENSE[] SEC("license") = "GPL";

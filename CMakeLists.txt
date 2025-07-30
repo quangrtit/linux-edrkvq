@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(SentinelEDR C)
-
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target bpf -m64")
 # Tell cmake where to find BpfObject module
 # list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
@@ -52,8 +52,9 @@ elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "loongarch64")
   set(ARCH "loongarch")
 endif()
 
+add_subdirectory(cjson)
 set(BPFOBJECT_BPFTOOL_EXE ${CMAKE_CURRENT_BINARY_DIR}/bpftool/bootstrap/bpftool)
-set(BPFOBJECT_VMLINUX_H ${CMAKE_CURRENT_SOURCE_DIR}/vmlinux.h/include/${ARCH}/vmlinux.h)
+# set(BPFOBJECT_VMLINUX_H ${CMAKE_CURRENT_SOURCE_DIR}/vmlinux.h/include/${ARCH}/vmlinux.h)
 set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
 set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.a)
 find_package(BpfObject REQUIRED)
@@ -63,12 +64,12 @@ file(GLOB apps ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/*.bpf.c)
 
 set(KERNEL_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kernel")
 set(USER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/user") 
-file(COPY ${KERNEL_HEADERS_DIR}/ 
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-     FILES_MATCHING PATTERN "*.h") 
-file(COPY ${USER_HEADERS_DIR}/ 
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-     FILES_MATCHING PATTERN "*.h") 
+# file(COPY ${KERNEL_HEADERS_DIR}/ 
+#      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+#      FILES_MATCHING PATTERN "*.h") 
+# file(COPY ${USER_HEADERS_DIR}/ 
+#      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+#      FILES_MATCHING PATTERN "*.h") 
 
 set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.c
@@ -95,12 +96,14 @@ add_executable(${MAIN_EXECUTABLE_NAME} ${USER_SPACE_SOURCES})
 # target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE ${LIBBPF_LIBRARIES})
 target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     ${LIBBPF_LIBRARIES} 
+    ${USER_HEADERS_DIR}
     -l:libelf.a   
     -l:libz.a     
     -l:libzstd.a  
     -lpthread     
     -lrt          
-    -ldl      
+    -ldl 
+    cjson     
 )
 # Link the main executable to all generated eBPF skeletons
 foreach(app_item ${apps})

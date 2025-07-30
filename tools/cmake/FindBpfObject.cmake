@@ -174,6 +174,17 @@ macro(bpf_object name input)
     DEPENDS ${BPF_C_FILE} ${BPF_H_FILES} ${BPFOBJECT_VMLINUX_H}
     COMMENT "[clang] Building BPF object: ${name}")
 
+  # add_custom_command(OUTPUT ${BPF_O_FILE}
+  # COMMAND ${BPFOBJECT_CLANG_EXE} -g -O2 -target bpf -D__TARGET_ARCH_${ARCH}
+  #         -nostdinc
+  #         -I${GENERATED_VMLINUX_DIR}
+  #         -isystem ${LIBBPF_INCLUDE_DIRS}
+  #         -c ${BPF_C_FILE} -o ${BPF_O_FILE}
+  # COMMAND_EXPAND_LISTS
+  # VERBATIM
+  # DEPENDS ${BPF_C_FILE} ${BPF_H_FILES} ${BPFOBJECT_VMLINUX_H}
+  # COMMENT "[clang] Building BPF object: ${name}")
+  
   # Build BPF skeleton header
   add_custom_command(OUTPUT ${BPF_SKEL_FILE}
     COMMAND bash -c "${BPFOBJECT_BPFTOOL_EXE} gen skeleton ${BPF_O_FILE} > ${BPF_SKEL_FILE}"
