@@ -1,15 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
 #include <signal.h>
+#include <sys/resource.h>
+#include <time.h>
+
 #include <bpf/libbpf.h>
-#include "self_defense.h"                    
+#include "common.h"                    
 #include "self_defense.skel.h"                  
+#include "policy_manager.h"
+
 
 static volatile sig_atomic_t exiting = 0;
 
 static int handle_event(void *ctx, void *data, size_t data_sz) {
-    const struct event *e = data;
-    printf("[DEL] PID_COMM: %s, FILE: %s\n", e->comm, e->filename);
+    const struct log_debug *log = data;
+    struct timespec ts;
+    char timestamp_str[32];
+
+    // Convert nanoseconds to a more readable format
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    ts.tv_sec = log->timestamp_ns / 1000000000ULL;
+    ts.tv_nsec = log->timestamp_ns % 1000000000ULL;
+    strftime(timestamp_str, sizeof(timestamp_str), "%H:%M:%S", localtime(&ts.tv_sec));
+    snprintf(timestamp_str + strlen(timestamp_str), sizeof(timestamp_str) - strlen(timestamp_str),
+             ".%06lu", ts.tv_nsec / 1000);
+
+
+    const char *level_str = "UNKNOWN";
+    switch (log->level) {
+        case INFO: level_str = "INFO"; break;
+        case WARNING: level_str = "WARNING"; break;
+        case ERROR: level_str = "ERROR"; break;
+        case BLOCKED_ACTION: level_str = "BLOCKED"; break;
+    }
+
+    printf("[%s] [%-7s] PID: %d, UID: %d, Comm: '%s' -> %s\n",
+           timestamp_str, level_str, log->pid, log->uid, log->comm, log->msg);
+
     return 0;
 }
 
@@ -30,7 +60,8 @@ int main() {
         fprintf(stderr, "Failed to open and load BPF skeleton\n");
         return 1;
     }
-
+    const char *policy_file = "/home/ubuntu/lib/vcs-ajiant-edr/configs/self_defense_policy.json";
+    err = load_and_apply_policies(skel, policy_file);
     // Attach tracepoints
     err = self_defense_bpf__attach(skel);
     if (err) {
@@ -39,7 +70,7 @@ int main() {
     }
 
     // Set up ring buffer
-    rb = ring_buffer__new(bpf_map__fd(skel->maps.events), handle_event, NULL, NULL);
+    rb = ring_buffer__new(bpf_map__fd(skel->maps.debug_events), handle_event, NULL, NULL);
     if (!rb) {
         fprintf(stderr, "Failed to create ring buffer\n");
         goto cleanup;

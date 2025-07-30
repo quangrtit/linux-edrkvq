@@ -1,0 +1,44 @@
+{
+  "file_protection_rules": [
+    {
+      "path": "test1.txt",
+      "block_read": true,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true
+    },
+    {
+      "path": "test2.txt",
+      "block_read": true,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true
+    },
+    {
+      "path": "test3.txt",
+      "block_read": true,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true
+    }
+  ],
+  "process_protection_rules": [
+    {
+      "pid": 1234,                  
+      "protect_termination": true,
+      "block_exec": true       
+    }
+  ]
+}

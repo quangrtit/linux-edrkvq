@@ -2,33 +2,120 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "self_defense.h"
+#include <linux/errno.h>    
+#include <linux/limits.h>   
+#include "common.h"
+// #include "policy_manager.h"
 
 
-char LICENSE[] SEC("license") = "Dual BSD/GPL";
+char LICENSE[] SEC("license") = "GPL";
 
-// Ring buffer map
+// map debug event 
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 24); // 16MB
-} events SEC(".maps");
+    __uint(max_entries, 1 << 24);
+} debug_events SEC(".maps");
 
-SEC("tracepoint/syscalls/sys_enter_unlinkat")
-int trace_unlinkat(struct trace_event_raw_sys_enter *ctx) {
-    struct event *e;
-    const char *filename;
+// map file protection
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(file_policy_key_t));
+    __uint(value_size, sizeof(struct file_policy_value));
+    __uint(max_entries, MAX_POLICY_ENTRIES);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+} file_protection_policy SEC(".maps");
 
-    filename = (const char *)ctx->args[1];
-    if (!filename)
+static __always_inline void send_debug_log(__u32 level, const char *msg) {
+    char comm[16];
+    bpf_get_current_comm(&comm, sizeof(comm));
+    if(bpf_strncmp(comm, sizeof(comm) - 1, "rm") != 0)
+    {
+        return;
+    }
+    struct log_debug *log_entry;
+    log_entry = bpf_ringbuf_reserve(&debug_events, sizeof(*log_entry), 0);
+    if (!log_entry) {
+        return;
+    }
+    log_entry->timestamp_ns = bpf_ktime_get_ns();
+    __u64 pid_tgid = bpf_get_current_pid_tgid();
+    log_entry->pid = pid_tgid >> 32;
+    __u64 uid_gid = bpf_get_current_uid_gid();
+    log_entry->uid = uid_gid & 0xFFFFFFFF;
+    log_entry->level = level;
+    bpf_get_current_comm(&log_entry->comm, sizeof(log_entry->comm));
+    bpf_probe_read_kernel_str(&log_entry->msg, sizeof(log_entry->msg), msg);
+
+    bpf_ringbuf_submit(log_entry, 0);
+}
+
+
+// search policy
+static __always_inline struct file_policy_value *lookup_file_policy(const char *filename) {
+    file_policy_key_t key;
+    bpf_probe_read_kernel_str(&key, sizeof(key), filename);
+    return bpf_map_lookup_elem(&file_protection_policy, &key);
+}
+
+const char SECRET_FILE_NAME[] = "test.txt";
+SEC("lsm/inode_unlink")
+int BPF_PROG(protect_secret_file_1, struct inode *dir, struct dentry *dentry, int ret) {
+    // check policy from user 
+
+    send_debug_log(INFO, "[inode_unlink] entered");
+
+    if (ret != 0) {
+        send_debug_log(INFO, "[inode_unlink] returned early due to existing denial");
+        return ret;
+    }
+
+    __u64 uid_gid = bpf_get_current_uid_gid();
+    __u32 uid = (uid_gid & 0xFFFFFFFF);
+
+    // if (uid == 0) {
+    //     send_debug_log(INFO, "[inode_unlink] Admin user detected, allowing unlink");
+    //     return 0;
+    // }
+
+    char dentry_name_buf[NAME_MAX];
+    const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+
+    if (bpf_strncmp(dentry_name_buf, sizeof(SECRET_FILE_NAME) - 1, SECRET_FILE_NAME) == 0) {
+        send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked non-root unlink of secret file");
+        return -EPERM;
+    }
+
+    send_debug_log(INFO, "[inode_unlink] Non-secret file unlink by non-root user, allowing");
+    return 0;
+}
+
+SEC("lsm/path_unlink")
+int BPF_PROG(protect_secret_file, const struct path *dir, struct dentry *dentry, int ret) {
+    send_debug_log(INFO, "[path_unlink] entered");
+
+    if (ret != 0) {
+        send_debug_log(INFO, "[path_unlink] returned early due to existing denial");
+        return ret;
+    }
+
+    __u64 uid_gid = bpf_get_current_uid_gid();
+    __u32 uid = (uid_gid & 0xFFFFFFFF);
+
+    if (uid == 0) {
+        send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
         return 0;
+    }
 
-    e = bpf_ringbuf_reserve(&events, sizeof(*e), 0);
-    if (!e)
-        return 0;
+    char dentry_name_buf[NAME_MAX];
+    const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
 
-    bpf_get_current_comm(&e->comm, sizeof(e->comm));
-    bpf_probe_read_user_str(&e->filename, sizeof(e->filename), filename);
+    if (bpf_strncmp(dentry_name_buf, sizeof(SECRET_FILE_NAME) - 1, SECRET_FILE_NAME) == 0) {
+        send_debug_log(BLOCKED_ACTION, "[path_unlink] Blocked non-root unlink of secret file");
+        return -EPERM;
+    }
 
-    bpf_ringbuf_submit(e, 0);
+    send_debug_log(INFO, "[path_unlink] Non-secret file unlink by non-root user, allowing");
     return 0;
 }

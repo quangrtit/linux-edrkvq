@@ -7,3 +7,6 @@
 [submodule "vmlinux.h"]
 	path = vmlinux.h
 	url = https://github.com/libbpf/vmlinux.h.git
+[submodule "cjson"]
+	path = cjson
+	url = https://github.com/DaveGamble/cJSON.git

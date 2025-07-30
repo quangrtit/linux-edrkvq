@@ -34,19 +34,6 @@ ExternalProject_Add(bpftool
   STEP_TARGETS build
 )
 
-find_program(CARGO_EXISTS cargo)
-if(CARGO_EXISTS)
-  ExternalProject_Add(blazesym
-    PREFIX blazesym
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/blazesym
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND cargo build --package=blazesym-c --release
-    BUILD_IN_SOURCE TRUE
-    INSTALL_COMMAND ""
-    STEP_TARGETS build
-  )
-endif()
-
 # Set BpfObject input parameters -- note this is usually not necessary unless
 # you're in a highly vendored environment (like libbpf-bootstrap)
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
@@ -73,10 +60,6 @@ find_package(BpfObject REQUIRED)
 
 # Create an executable for each application
 file(GLOB apps ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/*.bpf.c)
-message(${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/)
-if(NOT CARGO_EXISTS)
-  list(REMOVE_ITEM apps ${CMAKE_CURRENT_SOURCE_DIR}/profile.bpf.c)
-endif()
 
 set(KERNEL_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kernel")
 set(USER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/user") 
@@ -89,6 +72,7 @@ file(COPY ${USER_HEADERS_DIR}/
 
 set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.c
 )
 
 set(MAIN_EXECUTABLE_NAME ${CMAKE_PROJECT_NAME})
@@ -116,7 +100,7 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     -l:libzstd.a  
     -lpthread     
     -lrt          
-    -ldl        
+    -ldl      
 )
 # Link the main executable to all generated eBPF skeletons
 foreach(app_item ${apps})
@@ -128,6 +112,7 @@ endforeach()
 target_include_directories(${MAIN_EXECUTABLE_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR} 
     ${CMAKE_CURRENT_BINARY_DIR}/libbpf/bpf
+    ${CMAKE_SOURCE_DIR}/cjson
 )
 
 # Add dependencies for the main executable to ensure BPF objects are built first
@@ -137,14 +122,11 @@ foreach(app_item ${apps})
     add_dependencies(${MAIN_EXECUTABLE_NAME} ${app_stem_item}_skel)
 endforeach()
 
-# Special linking for blazesym if CARGO is found
-if(CARGO_EXISTS)
-  target_link_libraries(${MAIN_EXECUTABLE_NAME}
-    ${CMAKE_CURRENT_SOURCE_DIR}/blazesym/target/release/libblazesym_c.a -lpthread -lrt -ldl)
-  target_include_directories(${MAIN_EXECUTABLE_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/blazesym/capi/include)
-  add_dependencies(${MAIN_EXECUTABLE_NAME} blazesym-build)
-endif()
+# add_subdirectory(cjson)
+# target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE cjson)
+# target_include_directories(${MAIN_EXECUTABLE_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/cjson)
+
+
 
 # --- CPack Configuration ---
 set_target_properties(${MAIN_EXECUTABLE_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
