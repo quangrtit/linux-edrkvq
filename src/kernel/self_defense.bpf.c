@@ -50,16 +50,15 @@ static __always_inline void send_debug_log(__u32 level, const char *msg) {
 // search policy
 static __always_inline struct file_policy_value *lookup_file_policy(const char *filename) {
     file_policy_key_t key;
+    __builtin_memset(&key, 0, sizeof(key));
     bpf_probe_read_kernel_str(&key, sizeof(key), filename);
     return bpf_map_lookup_elem(&file_protection_policy, &key);
 }
 
-const char SECRET_FILE_NAME[] = "test.txt";
 SEC("lsm/inode_unlink")
-int BPF_PROG(protect_secret_file_1, struct inode *dir, struct dentry *dentry, int ret) {
-    // check policy from user 
+int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentry, int ret) {
 
-    send_debug_log(INFO, "[inode_unlink] entered");
+    // send_debug_log(INFO, "[inode_unlink] entered");
 
     if (ret != 0) {
         send_debug_log(INFO, "[inode_unlink] returned early due to existing denial");
@@ -77,42 +76,62 @@ int BPF_PROG(protect_secret_file_1, struct inode *dir, struct dentry *dentry, in
     char dentry_name_buf[NAME_MAX];
     const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
     bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
-
-    if (bpf_strncmp(dentry_name_buf, sizeof(SECRET_FILE_NAME) - 1, SECRET_FILE_NAME) == 0) {
-        send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked non-root unlink of secret file");
+    struct file_policy_value *policy = lookup_file_policy(dentry_name_buf);
+    // send_debug_log(INFO, dentry_name_buf);
+    // send_debug_log(INFO, policy->path);
+    if (policy && policy->block_unlink) {
+        send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked unlink due to policy");
         return -EPERM;
     }
 
-    send_debug_log(INFO, "[inode_unlink] Non-secret file unlink by non-root user, allowing");
+    // send_debug_log(INFO, "[inode_unlink] Non-secret file unlink by non-root user, allowing");
     return 0;
 }
 
-SEC("lsm/path_unlink")
-int BPF_PROG(protect_secret_file, const struct path *dir, struct dentry *dentry, int ret) {
-    send_debug_log(INFO, "[path_unlink] entered");
+// SEC("lsm/path_unlink")
+// int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentry, int ret) {
+//     send_debug_log(INFO, "[path_unlink] entered");
 
-    if (ret != 0) {
-        send_debug_log(INFO, "[path_unlink] returned early due to existing denial");
-        return ret;
+//     if (ret != 0) {
+//         send_debug_log(INFO, "[path_unlink] returned early due to existing denial");
+//         return ret;
+//     }
+
+//     __u64 uid_gid = bpf_get_current_uid_gid();
+//     __u32 uid = (uid_gid & 0xFFFFFFFF);
+
+//     if (uid == 0) {
+//         send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
+//         return 0;
+//     }
+
+//     char dentry_name_buf[NAME_MAX];
+//     const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+//     bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+
+//     if (bpf_strncmp(dentry_name_buf, sizeof(SECRET_FILE_NAME) - 1, SECRET_FILE_NAME) == 0) {
+//         send_debug_log(BLOCKED_ACTION, "[path_unlink] Blocked non-root unlink of secret file");
+//         return -EPERM;
+//     }
+
+//     send_debug_log(INFO, "[path_unlink] Non-secret file unlink by non-root user, allowing");
+//     return 0;
+// }
+
+SEC("lsm/file_permission")
+int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
+    if (mask & MAY_WRITE)
+    {
+        bpf_printk("Write access denined\n");
+        return -EACCES;
     }
-
-    __u64 uid_gid = bpf_get_current_uid_gid();
-    __u32 uid = (uid_gid & 0xFFFFFFFF);
-
-    if (uid == 0) {
-        send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
-        return 0;
+    // for read 
+    if (mask & MAY_READ) {
+        bpf_printk("Read access denied\n");
+        return -EACCES;
     }
-
-    char dentry_name_buf[NAME_MAX];
-    const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
-    bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
-
-    if (bpf_strncmp(dentry_name_buf, sizeof(SECRET_FILE_NAME) - 1, SECRET_FILE_NAME) == 0) {
-        send_debug_log(BLOCKED_ACTION, "[path_unlink] Blocked non-root unlink of secret file");
-        return -EPERM;
-    }
-
-    send_debug_log(INFO, "[path_unlink] Non-secret file unlink by non-root user, allowing");
     return 0;
 }
+
+
+

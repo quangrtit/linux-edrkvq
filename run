@@ -3,5 +3,16 @@ run test:
     docker run -it \
       -v ~/deb_test_files:/mnt/data \
       ubuntu-2404-user:latest bash
+      
+grep EACCES /usr/include/asm-generic/errno-base.h
+grep EACCES /usr/include/asm-generic/errno.h
+cat /usr/include/asm-generic/errno-base.h
+cat /usr/include/asm-generic/errno.h
+
 
 sudo docker cp /home/ubuntu/lib/vcs-ajiant-edr/build/SentinelEDR-1.0.0-linux-x86_64.deb ff902d59b87e:/root/tmp
+cmake .. -DDEFAULT_POLICY_FILE_PATH=self_defense_policy.json
+make 
+
+trace log: 
+  sudo bpftool prog tracelog

@@ -1,6 +1,17 @@
 {
   "file_protection_rules": [
     {
+      "path": "test0.txt",
+      "block_read": true,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true
+    },
+    {
       "path": "test1.txt",
       "block_read": true,
       "block_write": true,
@@ -10,28 +21,12 @@
       "block_chmod": true,
       "block_symlink_create": true,
       "block_hardlink_create": true
-    },
+    }
+  ],
+  "folder_protection_rules": [
     {
-      "path": "test2.txt",
-      "block_read": true,
-      "block_write": true,
-      "block_truncate_create": true,
-      "block_unlink": true,
-      "block_rename": true,
-      "block_chmod": true,
-      "block_symlink_create": true,
-      "block_hardlink_create": true
-    },
-    {
-      "path": "test3.txt",
-      "block_read": true,
-      "block_write": true,
-      "block_truncate_create": true,
-      "block_unlink": true,
-      "block_rename": true,
-      "block_chmod": true,
-      "block_symlink_create": true,
-      "block_hardlink_create": true
+      "path": "test_folder0",
+      "block_unlink": true
     }
   ],
   "process_protection_rules": [

@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(SentinelEDR C)
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target bpf -m64")
+set(CMAKE_EXE_LINKER_FLAGS "-static")
 # Tell cmake where to find BpfObject module
-# list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
 # Build vendored libbpf
 include(ExternalProject)
@@ -64,13 +63,6 @@ file(GLOB apps ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/*.bpf.c)
 
 set(KERNEL_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kernel")
 set(USER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/user") 
-# file(COPY ${KERNEL_HEADERS_DIR}/ 
-#      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-#      FILES_MATCHING PATTERN "*.h") 
-# file(COPY ${USER_HEADERS_DIR}/ 
-#      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-#      FILES_MATCHING PATTERN "*.h") 
-
 set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.c
@@ -96,7 +88,6 @@ add_executable(${MAIN_EXECUTABLE_NAME} ${USER_SPACE_SOURCES})
 # target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE ${LIBBPF_LIBRARIES})
 target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     ${LIBBPF_LIBRARIES} 
-    ${USER_HEADERS_DIR}
     -l:libelf.a   
     -l:libz.a     
     -l:libzstd.a  
@@ -125,11 +116,11 @@ foreach(app_item ${apps})
     add_dependencies(${MAIN_EXECUTABLE_NAME} ${app_stem_item}_skel)
 endforeach()
 
-# add_subdirectory(cjson)
-# target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE cjson)
-# target_include_directories(${MAIN_EXECUTABLE_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/cjson)
-
-
+set(DEFAULT_POLICY_FILE_PATH "/etc/SentinelEDR/self_defense_policy.json" CACHE STRING "Default path to self defense policy JSON file")
+target_compile_definitions(SentinelEDR PRIVATE DEFAULT_POLICY_FILE_PATH=\"${DEFAULT_POLICY_FILE_PATH}\")
+configure_file("${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
+               "${CMAKE_BINARY_DIR}/self_defense_policy.json"
+               COPYONLY)
 
 # --- CPack Configuration ---
 set_target_properties(${MAIN_EXECUTABLE_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -140,8 +131,7 @@ install(TARGETS ${MAIN_EXECUTABLE_NAME} DESTINATION bin)
 # Placeholder for configuration files and other assets
 # Define your config files here (e.g., sentinel.conf, rules.json)
 set(CONFIG_FILES
-    # "${CMAKE_CURRENT_SOURCE_DIR}/configs/sentinel.conf"
-    # "${CMAKE_CURRENT_SOURCE_DIR}/certs/ca.crt"
+    "${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
 )
 # Define the installation destination for config files (e.g., /etc/sentineledr)
 set(CONFIG_INSTALL_DIR "/etc/${CMAKE_PROJECT_NAME}")

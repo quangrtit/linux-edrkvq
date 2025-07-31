@@ -2,12 +2,12 @@
 #define __COMMON_USER_H
 
 #include <stdbool.h>
-#include <stdint.h>   // cho uint32_t, uint64_t
-#include <linux/types.h>  // hoặc <sys/types.h> nếu dùng kiểu __u32, __u64
+#include <stdint.h>  
+#include <linux/types.h> 
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 16
-#define MAX_PATH_LEN 256
-#define MAX_POLICY_ENTRIES 256
+#define MAX_PATH_LEN 128
+#define MAX_POLICY_ENTRIES 64
 #define NAME_MAX 255
 #define EPERM     1
 
@@ -30,7 +30,7 @@ struct log_debug {
 typedef char file_policy_key_t[MAX_PATH_LEN];
 
 struct file_policy_value {
-    char* path;
+    char path[MAX_PATH_LEN];
     bool block_read;
     bool block_write;
     bool block_truncate_create;

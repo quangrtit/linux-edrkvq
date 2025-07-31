@@ -58,7 +58,7 @@ int main() {
         fprintf(stderr, "Failed to open and load BPF skeleton\n");
         return 1;
     }
-    const char *policy_file = "/home/ubuntu/lib/vcs-ajiant-edr/configs/self_defense_policy.json";
+    const char *policy_file = get_policy_path();
     err = load_and_apply_policies(skel, policy_file);
     // Attach tracepoints
     err = self_defense_bpf__attach(skel);
