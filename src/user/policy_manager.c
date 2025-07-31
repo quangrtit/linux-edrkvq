@@ -3,11 +3,14 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h> 
+#include <sys/stat.h>
 #include "common_user.h"
 #include "policy_manager.h"
 #include "cJSON.h"
+#include <sys/sysmacros.h>
 
-
+#define KERNEL_MINORBITS 20
+#define KERNEL_MKDEV(major, minor) ((__u64)(major) << KERNEL_MINORBITS | (minor))
 
 const char *get_policy_path() {
     const char *env = getenv("SENTINEL_POLICY_FILE");
@@ -15,19 +18,51 @@ const char *get_policy_path() {
 }
 
 int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value) {
-    file_policy_key_t key;
-    memset(&key, 0, sizeof(key));
-    strncpy(key, path, sizeof(key) - 1);
-    key[sizeof(key) - 1] = '\0';
-    printf("debug 1: %s\n", key);
+    struct stat st;
+    if (stat(path, &st) != 0) {
+        fprintf(stderr, "Failed to stat file '%s': %s\n", path, strerror(errno));
+        return -1;
+    }
+
+    unsigned int user_major = major(st.st_dev);
+    unsigned int user_minor = minor(st.st_dev);
+
+    __u64 kernel_compatible_dev = KERNEL_MKDEV(user_major, user_minor);
+
+    __u64 key = (kernel_compatible_dev << 32) | (__u64)st.st_ino;
+
     int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
     if (err) {
         fprintf(stderr, "Failed to update file policy for '%s': %s\n", path, strerror(errno));
         return err;
     }
-    printf("[Policy Manager] Applied file policy for '%s'.\n", path);
+
+    printf("[Policy Manager] Applied file policy for '%s' (user_dev=0x%llx, user_ino=0x%llx, kernel_compatible_dev=0x%llx). Final Key=0x%llx\n",
+           path, (unsigned long long)st.st_dev, (unsigned long long)st.st_ino,
+           (unsigned long long)kernel_compatible_dev, (unsigned long long)key);
+    printf("User space debug: major=%u, minor=%u\n", user_major, user_minor);
     return 0;
 }
+// int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value) {
+//     struct stat st;
+//     if (stat(path, &st) != 0) {
+//         fprintf(stderr, "Failed to stat file '%s': %s\n", path, strerror(errno));
+//         return -1;
+//     }
+
+//     // Gen key from dev and ino
+//     __u64 key = ((__u64)st.st_dev << 32) | (__u64)st.st_ino;
+
+//     int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
+//     if (err) {
+//         fprintf(stderr, "Failed to update file policy for '%s': %s\n", path, strerror(errno));
+//         return err;
+//     }
+
+//     printf("[Policy Manager] Applied file policy for '%s' (dev=%lu, ino=%lu).\n", path, (unsigned long)st.st_dev, (unsigned long)st.st_ino);
+//     printf("Apply key = 0x%lx%08lx\n", (unsigned long)st.st_dev, (unsigned long)st.st_ino);
+//     return 0;
+// }
 
 int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_filepath) {
     FILE *fp = fopen(json_filepath, "r");
@@ -77,14 +112,15 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             policy.block_truncate_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_truncate_create"));
             policy.block_unlink = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_unlink"));
             policy.block_rename = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_rename"));
+            policy.block_move = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_move"));
             policy.block_chmod = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_chmod"));
             policy.block_symlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_symlink_create"));
             policy.block_hardlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_hardlink_create"));
+            
             printf("\n[userspace debug] 11 1111111 1 %s\n", policy.path);
             apply_file_policy(skel, policy.path, &policy);
         }
     }
-
     cJSON_Delete(root);
     free(json_string);
     return 0;

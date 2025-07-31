@@ -20,6 +20,9 @@
 #define MAY_ACCESS  0x00000010  
 #define ENOENT       2    // No such file or directory
 #define EACCES      13    // Permission denied
+#define O_TRUNC 0x00000200
+#define ATTR_MODE (1 << 1)
+#define ATTR_UID  (1 << 2)
 enum log_level {
     INFO,
     WARNING,
@@ -36,8 +39,8 @@ struct log_debug {
     char msg[LOG_MSG_MAX_LEN];
 };
 
-typedef char file_policy_key_t[MAX_PATH_LEN];
-
+// typedef char file_policy_key_t[MAX_PATH_LEN];
+typedef __u64 file_policy_key_t;
 struct file_policy_value {
     char path[128];
     __u8 block_read;
@@ -45,6 +48,7 @@ struct file_policy_value {
     __u8 block_truncate_create;
     __u8 block_unlink;
     __u8 block_rename;
+    __u8 block_move;
     __u8 block_chmod;
     __u8 block_symlink_create;
     __u8 block_hardlink_create;

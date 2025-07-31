@@ -1,23 +1,13 @@
 {
   "file_protection_rules": [
     {
-      "path": "test0.txt",
+      "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
       "block_read": true,
       "block_write": true,
       "block_truncate_create": true,
       "block_unlink": true,
       "block_rename": true,
-      "block_chmod": true,
-      "block_symlink_create": true,
-      "block_hardlink_create": true
-    },
-    {
-      "path": "test1.txt",
-      "block_read": true,
-      "block_write": true,
-      "block_truncate_create": true,
-      "block_unlink": true,
-      "block_rename": true,
+      "block_move": true,
       "block_chmod": true,
       "block_symlink_create": true,
       "block_hardlink_create": true
@@ -25,7 +15,7 @@
   ],
   "folder_protection_rules": [
     {
-      "path": "test_folder0",
+      "path": "test_folder_vcs0",
       "block_unlink": true
     }
   ],

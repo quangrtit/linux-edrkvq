@@ -22,13 +22,24 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
 } file_protection_policy SEC(".maps");
 
-static __always_inline void send_debug_log(__u32 level, const char *msg) {
+static __always_inline int check_process_name(const char* process_name) {
     char comm[16];
     bpf_get_current_comm(&comm, sizeof(comm));
-    if(bpf_strncmp(comm, sizeof(comm) - 1, "rm") != 0)
+    if( bpf_strncmp(comm, sizeof(comm) - 1, process_name) == 0)
     {
-        return;
+        return 0;
     }
+    return -1;
+}
+static __always_inline void send_debug_log(__u32 level, const char *msg) {
+    // char comm[16];
+    // bpf_get_current_comm(&comm, sizeof(comm));
+    // if( bpf_strncmp(comm, sizeof(comm) - 1, "rm") != 0 ||
+    //     bpf_strncmp(comm, sizeof(comm) - 1, "cat") != 0 
+    // )
+    // {
+    //     return;
+    // }
     struct log_debug *log_entry;
     log_entry = bpf_ringbuf_reserve(&debug_events, sizeof(*log_entry), 0);
     if (!log_entry) {
@@ -48,18 +59,27 @@ static __always_inline void send_debug_log(__u32 level, const char *msg) {
 
 
 // search policy
-static __always_inline struct file_policy_value *lookup_file_policy(const char *filename) {
-    file_policy_key_t key;
-    __builtin_memset(&key, 0, sizeof(key));
-    bpf_probe_read_kernel_str(&key, sizeof(key), filename);
-    return bpf_map_lookup_elem(&file_protection_policy, &key);
+static __always_inline struct file_policy_value *lookup_file_policy(struct dentry *dentry) {
+    struct file_policy_value *policy = NULL;
+
+    struct inode *inode = BPF_CORE_READ(dentry, d_inode);
+    if (!inode)
+        return NULL;
+    __u64 ino = BPF_CORE_READ(inode, i_ino);
+    struct super_block *sb = BPF_CORE_READ(inode, i_sb);
+    if (!sb)
+        return NULL;
+    dev_t dev = BPF_CORE_READ(sb, s_dev);
+    __u64 key = ((__u64)dev << 32) | (__u64)ino;
+    policy = bpf_map_lookup_elem(&file_protection_policy, &key);
+    // bpf_printk("dev=0x%x", dev);
+    // bpf_printk("ino=0x%lx", ino);
+    // bpf_printk("key=0x%llx", key);
+    return policy;
 }
 
 SEC("lsm/inode_unlink")
 int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentry, int ret) {
-
-    // send_debug_log(INFO, "[inode_unlink] entered");
-
     if (ret != 0) {
         send_debug_log(INFO, "[inode_unlink] returned early due to existing denial");
         return ret;
@@ -72,66 +92,117 @@ int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentr
     //     send_debug_log(INFO, "[inode_unlink] Admin user detected, allowing unlink");
     //     return 0;
     // }
+    char dentry_name_buf[NAME_MAX];
+    const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    struct file_policy_value *policy = lookup_file_policy(dentry);
+    if (policy && policy->block_unlink) {
+        send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked unlink due to policy");
+        return -EPERM;
+    }
+    return 0;
+}
+
+SEC("lsm/path_unlink")
+int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentry, int ret) {
+    if (ret != 0) {
+        send_debug_log(INFO, "[path_unlink] returned early due to existing denial");
+        return ret;
+    }
+
+    __u64 uid_gid = bpf_get_current_uid_gid();
+    __u32 uid = (uid_gid & 0xFFFFFFFF);
+
+    // if (uid == 0) {
+    //     send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
+    //     return 0;
+    // }
 
     char dentry_name_buf[NAME_MAX];
     const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
     bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
-    struct file_policy_value *policy = lookup_file_policy(dentry_name_buf);
-    // send_debug_log(INFO, dentry_name_buf);
-    // send_debug_log(INFO, policy->path);
+    struct file_policy_value *policy = lookup_file_policy(dentry);
     if (policy && policy->block_unlink) {
         send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked unlink due to policy");
         return -EPERM;
     }
 
-    // send_debug_log(INFO, "[inode_unlink] Non-secret file unlink by non-root user, allowing");
     return 0;
 }
 
-// SEC("lsm/path_unlink")
-// int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentry, int ret) {
-//     send_debug_log(INFO, "[path_unlink] entered");
-
-//     if (ret != 0) {
-//         send_debug_log(INFO, "[path_unlink] returned early due to existing denial");
-//         return ret;
-//     }
-
-//     __u64 uid_gid = bpf_get_current_uid_gid();
-//     __u32 uid = (uid_gid & 0xFFFFFFFF);
-
-//     if (uid == 0) {
-//         send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
-//         return 0;
-//     }
-
-//     char dentry_name_buf[NAME_MAX];
-//     const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
-//     bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
-
-//     if (bpf_strncmp(dentry_name_buf, sizeof(SECRET_FILE_NAME) - 1, SECRET_FILE_NAME) == 0) {
-//         send_debug_log(BLOCKED_ACTION, "[path_unlink] Blocked non-root unlink of secret file");
-//         return -EPERM;
-//     }
-
-//     send_debug_log(INFO, "[path_unlink] Non-secret file unlink by non-root user, allowing");
-//     return 0;
-// }
-
+// for write and read file 
 SEC("lsm/file_permission")
 int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
-    if (mask & MAY_WRITE)
-    {
-        bpf_printk("Write access denined\n");
+    
+    
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    // if (__builtin_memcmp(task->comm, "cat", 3) != 0 && 
+    //     __builtin_memcmp(task->comm, "echo", 3) != 0
+    // ) {
+    //     return 0;
+    // }
+    char filename[MAX_PATH_LEN] = {};
+    bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
+    struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
+    struct file_policy_value *policy = lookup_file_policy(dentry);
+    
+    // for write
+    if ((mask & MAY_WRITE) && policy && policy->block_write) {
+        bpf_printk("Write access denied to %s\n", filename);
         return -EACCES;
     }
     // for read 
-    if (mask & MAY_READ) {
+    if (mask & MAY_READ && policy && policy->block_read) {
         bpf_printk("Read access denied\n");
         return -EACCES;
     }
     return 0;
 }
 
+// for move and rename file 
+SEC("lsm/inode_rename")
+int BPF_PROG(protect_rename_move_file,
+             struct inode *old_dir, struct dentry *old_dentry,
+             struct inode *new_dir, struct dentry *new_dentry,
+             unsigned int flags)
+{
+    char old_name[MAX_PATH_LEN];
+    bpf_core_read_str(old_name, sizeof(old_name), old_dentry->d_name.name);
+    struct file_policy_value *policy = lookup_file_policy(old_dentry);
+    
+    if (policy && (policy->block_rename || policy->block_move)) {
+        bpf_printk("Blocked rename/move of protected file: %s\n", old_name);
+        return -EPERM;
+    }
 
+    return 0;
+}
+
+// : > test_file_vcs1.txt : override file by O_TRUNC when file open
+SEC("lsm/file_open")
+int BPF_PROG(block_trunc_file, struct file *file) {
+    char filename[MAX_PATH_LEN] = {};
+    bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
+    struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
+    struct file_policy_value *policy = lookup_file_policy(dentry);
+    if ((file->f_flags & O_TRUNC) && policy && policy->block_truncate_create) {
+        return -EPERM;
+    }
+    return 0;
+}
+
+// set attribute 
+// SEC("lsm/inode_setattr")
+// int BPF_PROG(block_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr) {
+
+//     struct file_policy_value *policy = lookup_file_policy(dentry);
+//     char msg1[] = "[eBPF] Block chmod attempt.\n";
+//     send_debug_log(INFO, msg1);
+//     if ((attr->ia_valid & ATTR_MODE) && policy && policy->block_chmod) {
+//         char msg[] = "[eBPF] Block chmod attempt.\n";
+//         send_debug_log(INFO, msg);
+//         return -EPERM;
+//     }
+//     return 0;
+// }
 

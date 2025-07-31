@@ -11,8 +11,9 @@ cat /usr/include/asm-generic/errno.h
 
 
 sudo docker cp /home/ubuntu/lib/vcs-ajiant-edr/build/SentinelEDR-1.0.0-linux-x86_64.deb ff902d59b87e:/root/tmp
-cmake .. -DDEFAULT_POLICY_FILE_PATH=self_defense_policy.json
-make 
+cmake .. -DDEFAULT_POLICY_FILE_PATH=self_defense_policy.json && make 
 
 trace log: 
   sudo bpftool prog tracelog
+
+  grep -rnw '/usr/include' -e 'O_TRUNC'

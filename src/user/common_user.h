@@ -10,7 +10,7 @@
 #define MAX_POLICY_ENTRIES 64
 #define NAME_MAX 255
 #define EPERM     1
-
+#define __u64 long long unsigned int
 enum log_level {
     INFO,
     WARNING,
@@ -27,8 +27,9 @@ struct log_debug {
     char msg[LOG_MSG_MAX_LEN];
 };
 
-typedef char file_policy_key_t[MAX_PATH_LEN];
+// typedef char file_policy_key_t[MAX_PATH_LEN];
 
+typedef long long unsigned int file_policy_key_t;
 struct file_policy_value {
     char path[MAX_PATH_LEN];
     bool block_read;
@@ -36,6 +37,7 @@ struct file_policy_value {
     bool block_truncate_create;
     bool block_unlink;
     bool block_rename;
+    bool block_move;
     bool block_chmod;
     bool block_symlink_create;
     bool block_hardlink_create;

@@ -77,7 +77,7 @@ int main() {
     printf("Watching for file deletes... Ctrl+C to stop.\n");
 
     while (!exiting) {
-        err = ring_buffer__poll(rb, 10);
+        err = ring_buffer__poll(rb, 100);
         if (err < 0) {
             fprintf(stderr, "Error polling ring buffer: %d\n", err);
             break;
