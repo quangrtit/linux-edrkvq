@@ -16,7 +16,7 @@
   "folder_protection_rules": [
     {
       "path": "test_folder_vcs0",
-      "block_unlink": true
+      "block_kill": true
     }
   ],
   "process_protection_rules": [

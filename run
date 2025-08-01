@@ -3,17 +3,31 @@ run test:
     docker run -it \
       -v ~/deb_test_files:/mnt/data \
       ubuntu-2404-user:latest bash
-      
+
 grep EACCES /usr/include/asm-generic/errno-base.h
 grep EACCES /usr/include/asm-generic/errno.h
 cat /usr/include/asm-generic/errno-base.h
 cat /usr/include/asm-generic/errno.h
+grep -rnw '/usr/include' -e 'O_TRUNC'
 
+
+test case:
+protect file:  
+  1	./attack_test	write
+  2	./attack_test	modify
+  3	./attack_test	delete
+  4	./attack_test	rename
+  5	./attack_test	recreate
+  6	./attack_test	mmap
+  7	./attack_test	openwrite
+  8	./attack_test	chmod
+test perfomance:
+  ps aux | grep SentinelEDR | grep -v grep
+  pidstat -p pid 1
 
 sudo docker cp /home/ubuntu/lib/vcs-ajiant-edr/build/SentinelEDR-1.0.0-linux-x86_64.deb ff902d59b87e:/root/tmp
 cmake .. -DDEFAULT_POLICY_FILE_PATH=self_defense_policy.json && make 
 
 trace log: 
   sudo bpftool prog tracelog
-
-  grep -rnw '/usr/include' -e 'O_TRUNC'
+  

@@ -22,6 +22,8 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
 } file_protection_policy SEC(".maps");
 
+
+// static function
 static __always_inline int check_process_name(const char* process_name) {
     char comm[16];
     bpf_get_current_comm(&comm, sizeof(comm));
@@ -70,6 +72,8 @@ static __always_inline struct file_policy_value *lookup_file_policy(struct dentr
     return policy;
 }
 
+
+// all protect files
 SEC("lsm/inode_unlink")
 int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentry, int ret) {
     if (ret != 0) {
@@ -288,3 +292,6 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 //     }
 //     return 0;
 // }
+
+
+// all protect processes

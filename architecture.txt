@@ -1,33 +1,21 @@
 vcs-ajiant-edr/
-├── libbpf/               # Submodule libbpf
-├── bpftool/              # Submodule bpftool (dùng để build *.skel.h)
-├── vmlinux.h/            # vmlinux.h cho CO-RE
+├── libbpf/               # libbpf
+├── bpftool/              # bpftool (dùng để build *.skel.h)
+├── vmlinux.h/            # vmlinux.h cho CO-RE cái này sẽ được tạo ra tùy thuộc vào kernel chứa các struct enum hệ thống
 ├── tools/
 │   └── cmake/            # Module hỗ trợ CMake (FindLibBpf, FindBpfObject)
 │   |    ├── FindBpfObject.cmake
 │   |    ├── FindLibBpf.cmake
 │   |── gen_vmlinux_h.sh
 ├── src/
-│   ├── kernel/
-│   │   ├── self_defense.bpf.c     # eBPF chặn kill, ptrace, v.v.
-│   │   ├── ioc_block.bpf.c        # eBPF giám sát hash, execve, IP connect
-│   │   ├── shared.h               # Header chung giữa kernel ↔ user
-│   ├── user/
-│   │   ├── self_defense.c         # Load self_defense và xử lý sự kiện
-│   │   ├── ioc_block.c            # Load ioc_block và xử lý IOC
-│   │   ├── bpf_loader.c           # Bọc lại API để load *.skel.h
-│   │   ├── main.c                 # Điểm khởi đầu, điều phối agent
-│   │   └── shared.h               # Include từ kernel để đồng bộ
+│   ├── kernel/     # Viết các chương trình bpf ở kernel
+│   │ 
+│   ├── user/       # Viết các chương trình ở lớp user
+│   │   
 ├── tests/
 │   └── test_self_defense.c
 │   └── test_ioc_block.c
-├── scripts/
-│   ├── build.sh
-│   ├── deploy.sh
-│   └── test.sh
 ├── configs/
-│   └── ioc_list.json              # IOC như hash, domain, IP
-├── examples/
-│   └── simulate_attack.sh         # Chạy PoC kiểm thử IOC
-├── CMakeLists.txt
-└── README.md
+│   └── configs.json              # chứa policy được định nghĩa sẽ gửi từ user xuống kernel tăng độ linh hoạt cho chính sách bảo vệ
+├── test_environment/     # Chứa mã kiểm thử tấn công vào tiến trình, file, các hành vi độc hại cho việc kiểm thử khả năng bảo vệ
+├── CMakeLists.txt 
