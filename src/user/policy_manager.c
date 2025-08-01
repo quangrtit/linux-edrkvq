@@ -20,7 +20,7 @@ const char *get_policy_path() {
 int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value) {
     struct stat st;
     if (stat(path, &st) != 0) {
-        fprintf(stderr, "Failed to stat file '%s': %s\n", path, strerror(errno));
+        fprintf(stderr, "[user space policy_manager.c] Failed to stat file '%s': %s\n", path, strerror(errno));
         return -1;
     }
 
@@ -33,41 +33,22 @@ int apply_file_policy(struct self_defense_bpf *skel, const char *path, const str
 
     int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
     if (err) {
-        fprintf(stderr, "Failed to update file policy for '%s': %s\n", path, strerror(errno));
+        fprintf(stderr, "[user space policy_manager.c] Failed to update file policy for '%s': %s\n", path, strerror(errno));
         return err;
     }
 
-    printf("[Policy Manager] Applied file policy for '%s' (user_dev=0x%llx, user_ino=0x%llx, kernel_compatible_dev=0x%llx). Final Key=0x%llx\n",
+    printf("[user space policy_manager.c] Applied file policy for '%s' (user_dev=0x%llx, user_ino=0x%llx, kernel_compatible_dev=0x%llx). Final Key=0x%llx\n",
            path, (unsigned long long)st.st_dev, (unsigned long long)st.st_ino,
            (unsigned long long)kernel_compatible_dev, (unsigned long long)key);
-    printf("User space debug: major=%u, minor=%u\n", user_major, user_minor);
+    printf("[user space policy_manager.c] User space debug: major=%u, minor=%u\n", user_major, user_minor);
     return 0;
 }
-// int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value) {
-//     struct stat st;
-//     if (stat(path, &st) != 0) {
-//         fprintf(stderr, "Failed to stat file '%s': %s\n", path, strerror(errno));
-//         return -1;
-//     }
 
-//     // Gen key from dev and ino
-//     __u64 key = ((__u64)st.st_dev << 32) | (__u64)st.st_ino;
-
-//     int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
-//     if (err) {
-//         fprintf(stderr, "Failed to update file policy for '%s': %s\n", path, strerror(errno));
-//         return err;
-//     }
-
-//     printf("[Policy Manager] Applied file policy for '%s' (dev=%lu, ino=%lu).\n", path, (unsigned long)st.st_dev, (unsigned long)st.st_ino);
-//     printf("Apply key = 0x%lx%08lx\n", (unsigned long)st.st_dev, (unsigned long)st.st_ino);
-//     return 0;
-// }
 
 int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_filepath) {
     FILE *fp = fopen(json_filepath, "r");
     if (fp == NULL) {
-        fprintf(stderr, "[Policy Manager] Error: Could not open policy file '%s': %s\n", json_filepath, strerror(errno));
+        fprintf(stderr, "[user space policy_manager.c] Error: Could not open policy file '%s': %s\n", json_filepath, strerror(errno));
         return -1;
     }
 
@@ -83,7 +64,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
     if (root == NULL) {
         const char *error_ptr = cJSON_GetErrorPtr();
         if (error_ptr != NULL) {
-            fprintf(stderr, "[Policy Manager] Error parsing JSON: %s\n", error_ptr);
+            fprintf(stderr, "[user space policy_manager.c] Error parsing JSON: %s\n", error_ptr);
         }
         free(json_string);
         return -1;
@@ -95,7 +76,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
         cJSON_ArrayForEach(rule_item, file_rules) {
             cJSON *path_json = cJSON_GetObjectItemCaseSensitive(rule_item, "path");
             if (!cJSON_IsString(path_json) || (path_json->valuestring == NULL)) {
-                fprintf(stderr, "[Policy Manager] Warning: 'path' not found or not a string in a file rule. Skipping.\n");
+                fprintf(stderr, "[user space policy_manager.c] Warning: 'path' not found or not a string in a file rule. Skipping.\n");
                 continue;
             }
             const char *path = path_json->valuestring;
@@ -117,7 +98,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             policy.block_symlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_symlink_create"));
             policy.block_hardlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_hardlink_create"));
             
-            printf("\n[userspace debug] 11 1111111 1 %s\n", policy.path);
+            // printf("[user space policy_manager.c] 11 1111111 1 %s\n", policy.path);
             apply_file_policy(skel, policy.path, &policy);
         }
     }

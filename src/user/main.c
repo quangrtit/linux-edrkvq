@@ -55,7 +55,7 @@ int main() {
     // Load and verify BPF program
     skel = self_defense_bpf__open_and_load();
     if (!skel) {
-        fprintf(stderr, "Failed to open and load BPF skeleton\n");
+        fprintf(stderr, "[user space main.c] Failed to open and load BPF skeleton\n");
         return 1;
     }
     const char *policy_file = get_policy_path();
@@ -63,18 +63,18 @@ int main() {
     // Attach tracepoints
     err = self_defense_bpf__attach(skel);
     if (err) {
-        fprintf(stderr, "Failed to attach BPF skeleton: %d\n", err);
+        fprintf(stderr, "[user space main.c] Failed to attach BPF skeleton: %d\n", err);
         goto cleanup;
     }
 
     // Set up ring buffer
     rb = ring_buffer__new(bpf_map__fd(skel->maps.debug_events), handle_event, NULL, NULL);
     if (!rb) {
-        fprintf(stderr, "Failed to create ring buffer\n");
+        fprintf(stderr, "[user space main.c] Failed to create ring buffer\n");
         goto cleanup;
     }
 
-    printf("Watching for file deletes... Ctrl+C to stop.\n");
+    printf("[user space main.c] Watching for file deletes... Ctrl+C to stop.\n");
 
     while (!exiting) {
         err = ring_buffer__poll(rb, 100);

@@ -23,6 +23,7 @@
 #define O_TRUNC 0x00000200
 #define ATTR_MODE (1 << 1)
 #define ATTR_UID  (1 << 2)
+#define PROT_WRITE 0x2
 enum log_level {
     INFO,
     WARNING,

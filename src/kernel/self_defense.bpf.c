@@ -32,14 +32,6 @@ static __always_inline int check_process_name(const char* process_name) {
     return -1;
 }
 static __always_inline void send_debug_log(__u32 level, const char *msg) {
-    // char comm[16];
-    // bpf_get_current_comm(&comm, sizeof(comm));
-    // if( bpf_strncmp(comm, sizeof(comm) - 1, "rm") != 0 ||
-    //     bpf_strncmp(comm, sizeof(comm) - 1, "cat") != 0 
-    // )
-    // {
-    //     return;
-    // }
     struct log_debug *log_entry;
     log_entry = bpf_ringbuf_reserve(&debug_events, sizeof(*log_entry), 0);
     if (!log_entry) {
@@ -92,12 +84,15 @@ int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentr
     //     send_debug_log(INFO, "[inode_unlink] Admin user detected, allowing unlink");
     //     return 0;
     // }
-    char dentry_name_buf[NAME_MAX];
-    const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
-    bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    // char dentry_name_buf[NAME_MAX];
+    // const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    // bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    if (!dentry) {
+        return 0;
+    }
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if (policy && policy->block_unlink) {
-        send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked unlink due to policy");
+        send_debug_log(BLOCKED_ACTION, "[kernel space inode_unlink] Blocked unlink due to policy");
         return -EPERM;
     }
     return 0;
@@ -106,7 +101,7 @@ int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentr
 SEC("lsm/path_unlink")
 int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentry, int ret) {
     if (ret != 0) {
-        send_debug_log(INFO, "[path_unlink] returned early due to existing denial");
+        send_debug_log(INFO, "[kernel space path_unlink] returned early due to existing denial");
         return ret;
     }
 
@@ -118,12 +113,15 @@ int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentr
     //     return 0;
     // }
 
-    char dentry_name_buf[NAME_MAX];
-    const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
-    bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    // char dentry_name_buf[NAME_MAX];
+    // const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    // bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    if (!dentry) {
+        return 0;
+    }
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if (policy && policy->block_unlink) {
-        send_debug_log(BLOCKED_ACTION, "[inode_unlink] Blocked unlink due to policy");
+        send_debug_log(BLOCKED_ACTION, "[kernel space path_unlink] Blocked unlink due to policy");
         return -EPERM;
     }
 
@@ -135,25 +133,23 @@ SEC("lsm/file_permission")
 int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
     
     
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
-    // if (__builtin_memcmp(task->comm, "cat", 3) != 0 && 
-    //     __builtin_memcmp(task->comm, "echo", 3) != 0
-    // ) {
-    //     return 0;
-    // }
-    char filename[MAX_PATH_LEN] = {};
-    bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
+    // struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    // char filename[MAX_PATH_LEN] = {};
+    // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
     struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
+    if (!dentry) {
+        return 0;
+    }
     struct file_policy_value *policy = lookup_file_policy(dentry);
     
     // for write
     if ((mask & MAY_WRITE) && policy && policy->block_write) {
-        bpf_printk("Write access denied to %s\n", filename);
+        send_debug_log(BLOCKED_ACTION, "[kernel space file_permission] Write access denied");
         return -EACCES;
     }
     // for read 
     if (mask & MAY_READ && policy && policy->block_read) {
-        bpf_printk("Read access denied\n");
+        send_debug_log(BLOCKED_ACTION, "[kernel space file_permission] Read access denied");
         return -EACCES;
     }
     return 0;
@@ -166,12 +162,15 @@ int BPF_PROG(protect_rename_move_file,
              struct inode *new_dir, struct dentry *new_dentry,
              unsigned int flags)
 {
-    char old_name[MAX_PATH_LEN];
-    bpf_core_read_str(old_name, sizeof(old_name), old_dentry->d_name.name);
+    // char old_name[MAX_PATH_LEN];
+    // bpf_core_read_str(old_name, sizeof(old_name), old_dentry->d_name.name);
+    if (!old_dentry) {
+        return 0;
+    }
     struct file_policy_value *policy = lookup_file_policy(old_dentry);
     
     if (policy && (policy->block_rename || policy->block_move)) {
-        bpf_printk("Blocked rename/move of protected file: %s\n", old_name);
+        send_debug_log(BLOCKED_ACTION, "[kernel space inode_rename] move or rename access denined");
         return -EPERM;
     }
 
@@ -181,28 +180,111 @@ int BPF_PROG(protect_rename_move_file,
 // : > test_file_vcs1.txt : override file by O_TRUNC when file open
 SEC("lsm/file_open")
 int BPF_PROG(block_trunc_file, struct file *file) {
-    char filename[MAX_PATH_LEN] = {};
-    bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
+    // char filename[MAX_PATH_LEN] = {};
+    // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
     struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
+    if (!dentry) {
+        return 0;
+    }
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if ((file->f_flags & O_TRUNC) && policy && policy->block_truncate_create) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space file_open] override file by O_TRUNC access denined");
         return -EPERM;
     }
     return 0;
 }
 
 // set attribute 
-// SEC("lsm/inode_setattr")
-// int BPF_PROG(block_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr) {
+SEC("lsm/inode_setattr")
+int BPF_PROG(block_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr) {
 
+ 
+    if(!dentry) {
+        return 0;
+    }
+    struct inode *inode = BPF_CORE_READ(dentry, d_inode);
+    struct file_policy_value *policy = lookup_file_policy(dentry);
+    if (!policy || !inode) {
+        return 0; 
+    }
+    // send_debug_log(INFO, "[kernel space inode_setattr] this is");
+    __u32 ia_valid = BPF_CORE_READ(attr, ia_valid);
+    if(!(ia_valid & ATTR_MODE)) {
+        return 0;
+    }
+    if (policy->block_chmod) {
+        umode_t old_mode = BPF_CORE_READ(inode, i_mode) & 0777;
+        umode_t new_mode = attr->ia_mode & 0777;
+        if (old_mode != new_mode) {
+            send_debug_log(BLOCKED_ACTION, "[kernel space inode_setattr] Block chmod attempt");
+            return -EPERM;
+        }
+        else {
+            send_debug_log(WARNING, "[kernel space inode_setattr] chmod attempt");
+        }
+    }
+    return 0;
+}
+
+SEC("lsm/path_chmod")
+int BPF_PROG(block_path_chmod, struct path *path, umode_t mode) {
+    struct dentry *dentry = BPF_CORE_READ(path, dentry);
+    if (!dentry) {
+        return 0;
+    }
+
+    struct inode *inode = BPF_CORE_READ(dentry, d_inode);
+    struct file_policy_value *policy = lookup_file_policy(dentry);
+    if (!policy || !inode) {
+        return 0;
+    }
+
+    umode_t old_mode = BPF_CORE_READ(inode, i_mode) & 0777;
+    umode_t new_mode = mode & 0777;
+
+    if (old_mode != new_mode && policy->block_chmod) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space path_chmod] Block chmod attempt");
+        return -EPERM;
+    } 
+    else {
+        send_debug_log(WARNING, "[kernel space path_chmod] chmod attempt");
+    }
+
+    return 0;
+}
+
+// block write file by mmap
+SEC("lsm/mmap_file")
+int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
+             unsigned long prot, unsigned long flags)
+{
+    if (!(prot & PROT_WRITE)) {
+        return 0;
+    }
+    struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
+    if (!dentry) {
+        return 0;
+    }
+    struct file_policy_value *policy = lookup_file_policy(dentry);
+    if (policy && policy->block_write) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space mmap_file] Blocked mmap(PROT_WRITE) on protected file");
+        return -EACCES;
+    }
+
+    return 0;
+}
+
+// SEC("lsm/file_mprotect")
+// int BPF_PROG(block_file_mprotect, struct vm_area_struct *vma, unsigned long prot) {
+
+//     if (!(prot & PROT_WRITE)) {
+//         return 0;
+//     }
+//     struct dentry *dentry = file->f_path.dentry;
 //     struct file_policy_value *policy = lookup_file_policy(dentry);
-//     char msg1[] = "[eBPF] Block chmod attempt.\n";
-//     send_debug_log(INFO, msg1);
-//     if ((attr->ia_valid & ATTR_MODE) && policy && policy->block_chmod) {
-//         char msg[] = "[eBPF] Block chmod attempt.\n";
-//         send_debug_log(INFO, msg);
-//         return -EPERM;
+//     if (policy && policy->block_write) {
+//         send_debug_log(INFO, "Blocked mmap(PROT_WRITE) on protected file");
+//         return -EACCES;
 //     }
 //     return 0;
 // }
-
