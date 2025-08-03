@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <sys/prctl.h>
 #include <time.h>
 #include "common_user.h"                    
 #include "self_defense.skel.h"                  
@@ -73,8 +74,11 @@ int main() {
         fprintf(stderr, "[user space main.c] Failed to create ring buffer\n");
         goto cleanup;
     }
-
-    printf("[user space main.c] Watching for file deletes... Ctrl+C to stop.\n");
+    pid_t pid = getpid();         // Process ID
+    pid_t ppid = getppid();       // Parent PID
+    char process_name[17] = {0};
+    prctl(PR_GET_NAME, (unsigned long)process_name);
+    printf("PID: %d, Name: %s [user space main.c] Watching for file deletes... Ctrl+C to stop.\n", pid, process_name);
 
     while (!exiting) {
         err = ring_buffer__poll(rb, 10);

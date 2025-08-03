@@ -1,8 +1,8 @@
 {
   "file_protection_rules": [
     {
-      "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
-      "block_read": true,
+      "path": "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
+      "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
       "block_unlink": true,
@@ -21,9 +21,9 @@
   ],
   "process_protection_rules": [
     {
-      "pid": 1234,                  
-      "protect_termination": true,
-      "block_exec": true       
+      "pid": 1234,                
+      "block_termination": true,
+      "block_injection": true       
     }
   ]
 }

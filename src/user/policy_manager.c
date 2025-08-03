@@ -44,6 +44,20 @@ int apply_file_policy(struct self_defense_bpf *skel, const char *path, const str
     return 0;
 }
 
+int apply_process_policy(struct self_defense_bpf *skel, __u32 pid, const struct process_policy_value *value)
+{
+    // temporarily protects only the current process itself
+    pid = (__u32)getpid(); 
+    int err = bpf_map__update_elem(skel->maps.process_protection_policy, &pid, sizeof(pid), (void *)value, sizeof(*value), BPF_ANY);
+    if (err) {
+        fprintf(stderr, "[user space policy_manager.c] Failed to apply process policy for PID %u: %s\n", pid, strerror(errno));
+        return err;
+    }
+
+    printf("[user space policy_manager.c] Applied process policy for PID %u (block_termination=%d, block_injection=%d)\n",
+           pid, value->block_termination, value->block_injection);
+    return 0;
+}
 
 int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_filepath) {
     FILE *fp = fopen(json_filepath, "r");
@@ -69,6 +83,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
         free(json_string);
         return -1;
     }
+    // rules for files
     cJSON *file_rules = cJSON_GetObjectItemCaseSensitive(root, "file_protection_rules");
     if (cJSON_IsArray(file_rules)) {
         
@@ -102,6 +117,28 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             apply_file_policy(skel, policy.path, &policy);
         }
     }
+
+    // rules for processes 
+    cJSON *process_rules = cJSON_GetObjectItemCaseSensitive(root, "process_protection_rules");
+    if (cJSON_IsArray(process_rules)) {
+        
+        cJSON *rule_item = NULL;
+        cJSON_ArrayForEach(rule_item, process_rules) {
+            struct process_policy_value policy = {0};
+
+            cJSON *pid_json = cJSON_GetObjectItemCaseSensitive(rule_item, "pid");
+            if (!cJSON_IsNumber(pid_json)) {
+                fprintf(stderr, "[user space policy_manager.c] Warning: 'pid' not found or not a number in process rule. Skipping.\n");
+                continue;
+            }
+            policy.pid = (__u32)pid_json->valueint;
+            policy.block_termination = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_termination"));
+            policy.block_injection = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_injection"));
+            
+            apply_process_policy(skel, policy.pid, &policy);
+        }
+    }
+
     cJSON_Delete(root);
     free(json_string);
     return 0;

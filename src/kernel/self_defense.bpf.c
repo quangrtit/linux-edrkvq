@@ -22,6 +22,14 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
 } file_protection_policy SEC(".maps");
 
+// map process protection
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(process_policy_key_t));
+    __uint(value_size, sizeof(struct process_policy_value));
+    __uint(max_entries, MAX_POLICY_ENTRIES);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+} process_protection_policy SEC(".maps");
 
 // static function
 static __always_inline int check_process_name(const char* process_name) {
@@ -33,6 +41,7 @@ static __always_inline int check_process_name(const char* process_name) {
     }
     return -1;
 }
+
 static __always_inline void send_debug_log(__u32 level, const char *msg) {
     struct log_debug *log_entry;
     log_entry = bpf_ringbuf_reserve(&debug_events, sizeof(*log_entry), 0);
@@ -52,7 +61,7 @@ static __always_inline void send_debug_log(__u32 level, const char *msg) {
 }
 
 
-// search policy
+// search policy of file
 static __always_inline struct file_policy_value *lookup_file_policy(struct dentry *dentry) {
     struct file_policy_value *policy = NULL;
 
@@ -72,8 +81,12 @@ static __always_inline struct file_policy_value *lookup_file_policy(struct dentr
     return policy;
 }
 
+// search policy of process 
+static __always_inline struct process_policy_value *lookup_process_policy(__u32 pid) {
+    return bpf_map_lookup_elem(&process_protection_policy, &pid);
+}
 
-// all protect files
+// all protection of files
 SEC("lsm/inode_unlink")
 int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentry, int ret) {
     if (ret != 0) {
@@ -198,6 +211,7 @@ int BPF_PROG(block_trunc_file, struct file *file) {
     return 0;
 }
 
+//inode_permission 
 // set attribute 
 SEC("lsm/inode_setattr")
 int BPF_PROG(block_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *attr) {
@@ -295,3 +309,15 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 
 
 // all protect processes
+SEC("lsm/task_kill")
+int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
+{
+    __u32 pid = BPF_CORE_READ(p, pid);
+    struct process_policy_value *policy = lookup_process_policy(pid);
+    bpf_printk("warning termination signal %d to PID %d", sig, pid);
+    if (policy && policy->block_termination) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space task_kill] Blocked termination");
+        return -EPERM;
+    }
+    return 0;
+}

@@ -43,4 +43,10 @@ struct file_policy_value {
     bool block_hardlink_create;
 };
 
+typedef __u32 process_policy_key_t;
+struct process_policy_value {
+    __u32 pid; 
+    __u8 block_termination;
+    __u8 block_injection;
+};
 #endif // __COMMON_USER_H

@@ -43,7 +43,7 @@ struct log_debug {
 // typedef char file_policy_key_t[MAX_PATH_LEN];
 typedef __u64 file_policy_key_t;
 struct file_policy_value {
-    char path[128];
+    char path[MAX_PATH_LEN];
     __u8 block_read;
     __u8 block_write;
     __u8 block_truncate_create;
@@ -55,4 +55,10 @@ struct file_policy_value {
     __u8 block_hardlink_create;
 };
 
+typedef __u32 process_policy_key_t;
+struct process_policy_value {
+    __u32 pid; 
+    __u8 block_termination;
+    __u8 block_injection;
+};
 #endif // __COMMON_KERN_H

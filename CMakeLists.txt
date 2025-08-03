@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.5)
 project(SentinelEDR C)
 set(CMAKE_EXE_LINKER_FLAGS "-static")
 # Tell cmake where to find BpfObject module
