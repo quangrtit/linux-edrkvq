@@ -79,13 +79,19 @@ int main() {
     char process_name[17] = {0};
     prctl(PR_GET_NAME, (unsigned long)process_name);
     printf("PID: %d, Name: %s [user space main.c] Watching for file deletes... Ctrl+C to stop.\n", pid, process_name);
-
+    unsigned int seed;
+    seed = 1337;
+    int cnt = 0;
+    srand(seed);
     while (!exiting) {
         err = ring_buffer__poll(rb, 10);
         if (err < 0) {
             fprintf(stderr, "Error polling ring buffer: %d\n", err);
             break;
         }
+        cnt += 1;
+        if(cnt % 100 == 0) {printf("#: %d\n", rand());}
+
     }
 
 cleanup:

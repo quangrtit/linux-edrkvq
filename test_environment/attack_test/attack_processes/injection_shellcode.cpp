@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <string>
 
-const std::string SENTINEL_EDR_PATH = "/home/ubuntu/lib/vcs-ajiant-edr/build/SentinelEDR";
+const std::string SENTINEL_EDR_PATH = "/home/quang/myLib/vcs-ajiant-edr/build/SentinelEDR";
 // read memory from the target process
 void read_mem(pid_t target_pid, long addr, char *buffer, int len)
 {

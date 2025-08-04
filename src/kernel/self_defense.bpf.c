@@ -339,3 +339,8 @@ int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
     return 0;  
 }
 // bprm_creds_for_exec
+SEC("lsm/bprm_creds_for_exec")
+int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
+    send_debug_log(INFO, "[kernel space bprm_creds_for_exec] Block bprm_creds_for_exec");
+    return 0;
+}
