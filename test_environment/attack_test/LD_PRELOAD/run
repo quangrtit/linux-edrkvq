@@ -1,0 +1,3 @@
+clang -fPIC -shared hack.c -o hack.so
+clang -o main main.c 
+LD_PRELOAD=./hack.so ./main

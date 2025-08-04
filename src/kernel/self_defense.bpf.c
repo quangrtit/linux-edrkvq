@@ -307,17 +307,35 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 //     return 0;
 // }
 
-
+// inode_permission
 // all protect processes
 SEC("lsm/task_kill")
 int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
 {
     __u32 pid = BPF_CORE_READ(p, pid);
     struct process_policy_value *policy = lookup_process_policy(pid);
-    bpf_printk("warning termination signal %d to PID %d", sig, pid);
+    // bpf_printk("warning termination signal %d to PID %d", sig, pid);
     if (policy && policy->block_termination) {
         send_debug_log(BLOCKED_ACTION, "[kernel space task_kill] Blocked termination");
         return -EPERM;
     }
     return 0;
 }
+
+SEC("lsm/ptrace_access_check")
+int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
+{
+    __u32 pid = BPF_CORE_READ(child, pid);
+    __u32 tracer_pid = bpf_get_current_pid_tgid() >> 32;
+    if(tracer_pid == pid) {
+        return 0;
+    }
+    struct process_policy_value *policy = lookup_process_policy(pid);
+    if (policy && policy->block_injection) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked injection shellcode by ptrace");
+        return -EPERM;  
+    }
+
+    return 0;  
+}
+// bprm_creds_for_exec
