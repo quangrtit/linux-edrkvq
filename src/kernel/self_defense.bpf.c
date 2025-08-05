@@ -199,6 +199,7 @@ SEC("lsm/file_open")
 int BPF_PROG(block_trunc_file, struct file *file) {
     // char filename[MAX_PATH_LEN] = {};
     // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
+    // send_debug_log(WARNING, filename);
     struct dentry *dentry = BPF_CORE_READ(file, f_path.dentry);
     if (!dentry) {
         return 0;
@@ -232,7 +233,8 @@ int BPF_PROG(block_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry
     }
     if (policy->block_chmod) {
         umode_t old_mode = BPF_CORE_READ(inode, i_mode) & 0777;
-        umode_t new_mode = attr->ia_mode & 0777;
+        // umode_t new_mode = attr->ia_mode & 0777;
+        umode_t new_mode = BPF_CORE_READ(attr, ia_mode) & 0777;
         if (old_mode != new_mode) {
             send_debug_log(BLOCKED_ACTION, "[kernel space inode_setattr] Block chmod attempt");
             return -EPERM;
@@ -270,12 +272,12 @@ int BPF_PROG(block_path_chmod, struct path *path, umode_t mode) {
 
     return 0;
 }
-
 // block write file by mmap
 SEC("lsm/mmap_file")
 int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
              unsigned long prot, unsigned long flags)
 {
+    
     if (!(prot & PROT_WRITE)) {
         return 0;
     }
@@ -283,6 +285,11 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
     if (!dentry) {
         return 0;
     }
+    // char filename[NAME_MAX];
+    // const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    // bpf_core_read_str(&filename, sizeof(filename), dentry_name_ptr);
+    // send_debug_log(BLOCKED_ACTION, filename);
+
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if (policy && policy->block_write) {
         send_debug_log(BLOCKED_ACTION, "[kernel space mmap_file] Blocked mmap(PROT_WRITE) on protected file");
@@ -338,9 +345,9 @@ int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 
     return 0;  
 }
-// bprm_creds_for_exec
-SEC("lsm/bprm_creds_for_exec")
-int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
-    send_debug_log(INFO, "[kernel space bprm_creds_for_exec] Block bprm_creds_for_exec");
-    return 0;
-}
+// // bprm_creds_for_exec
+// SEC("lsm/bprm_creds_for_exec")
+// int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
+//     send_debug_log(INFO, "[kernel space bprm_creds_for_exec] Block bprm_creds_for_exec");
+//     return 0;
+// }

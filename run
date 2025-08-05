@@ -31,4 +31,4 @@ cmake .. -DDEFAULT_POLICY_FILE_PATH=self_defense_policy.json && make
 trace log: 
   sudo bpftool prog tracelog
   
-sudo LD_PRELOAD=/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/LD_PRELOAD/hack.so ./SentinelEDR
+sudo LD_PRELOAD=/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/LD_PRELOAD/hack.so ./SentinelEDR

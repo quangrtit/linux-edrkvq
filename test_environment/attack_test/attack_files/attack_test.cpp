@@ -13,9 +13,9 @@
 #include <sys/uio.h>
 #include <dirent.h>
 
-const char* target_path = "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt";
-const char* renamed_path = "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_renamed.txt";
-const std::string SENTINEL_EDR_PATH = "/home/quang/myLib/vcs-ajiant-edr/build/SentinelEDR";
+const char* target_path = "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt";
+const char* renamed_path = "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_renamed.txt";
+const std::string SENTINEL_EDR_PATH = "/home/ubuntu/lib/vcs-ajiant-edr/build/SentinelEDR";
 
 pid_t get_pid_by_exe_path(const std::string& target_path) {
     DIR* proc_dir = opendir("/proc");

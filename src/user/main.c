@@ -45,7 +45,6 @@ static int handle_event(void *ctx, void *data, size_t data_sz) {
 static void sig_handler(int sig) {
     exiting = 1;
 }
-
 int main() {
     struct self_defense_bpf *skel;
     struct ring_buffer *rb = NULL;
@@ -83,14 +82,15 @@ int main() {
     seed = 1337;
     int cnt = 0;
     srand(seed);
+    printf("#: %d\n", rand());
     while (!exiting) {
         err = ring_buffer__poll(rb, 10);
         if (err < 0) {
             fprintf(stderr, "Error polling ring buffer: %d\n", err);
             break;
         }
-        cnt += 1;
-        if(cnt % 100 == 0) {printf("#: %d\n", rand());}
+        // cnt += 1;
+        // if(cnt % 100 == 0) {printf("#: %d\n", rand());}
 
     }
 
