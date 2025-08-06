@@ -345,6 +345,11 @@ int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 
     return 0;  
 }
+/*
+    LSM_HOOK(int, 0, task_setpgid, struct task_struct *p, pid_t pgid)
+    LSM_HOOK(int, 0, task_getpgid, struct task_struct *p)
+    LSM_HOOK(int, 0, task_getsid, struct task_struct *p)
+*/
 // // bprm_creds_for_exec
 // SEC("lsm/bprm_creds_for_exec")
 // int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {

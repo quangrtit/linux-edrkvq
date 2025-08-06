@@ -1,0 +1,12 @@
+[Unit]
+Description=Self-Defense EDR Launcher
+After=network.target
+
+[Service]
+ExecStart=/usr/local/sbin/edr_launcher
+Type=forking
+RemainAfterExit=yes
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
