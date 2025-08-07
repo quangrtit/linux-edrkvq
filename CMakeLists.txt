@@ -124,6 +124,12 @@ configure_file("${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
 configure_file("${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"
                "${CMAKE_BINARY_DIR}/SentinelEDR.service"
                COPYONLY)
+configure_file("${CMAKE_SOURCE_DIR}/install.sh"
+               "${CMAKE_BINARY_DIR}/install.sh"
+               COPYONLY)
+configure_file("${CMAKE_SOURCE_DIR}/uninstall.sh"
+               "${CMAKE_BINARY_DIR}/uninstall.sh"
+               COPYONLY)
 # --- CPack Configuration ---
 set_target_properties(${MAIN_EXECUTABLE_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -143,10 +149,13 @@ if(CONFIG_FILES)
             # Add specific permissions if needed, e.g., PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
     )
 endif()
-
+# --- Install systemd service file ---
+install(FILES "${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"
+        DESTINATION "/etc/systemd/system/"
+        PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 # Placeholder for systemd service files (if your application runs as a daemon)
 # set(SYSTEMD_SERVICE_FILES
-#     "${CMAKE_CURRENT_SOURCE_DIR}/systemd/sentinel.service"
+#     "${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"
 # )
 # if(SYSTEMD_SERVICE_FILES)
 #    install(FILES ${SYSTEMD_SERVICE_FILES} DESTINATION "/lib/systemd/system/")
