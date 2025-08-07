@@ -121,7 +121,9 @@ target_compile_definitions(SentinelEDR PRIVATE DEFAULT_POLICY_FILE_PATH=\"${DEFA
 configure_file("${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
                "${CMAKE_BINARY_DIR}/self_defense_policy.json"
                COPYONLY)
-
+configure_file("${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"
+               "${CMAKE_BINARY_DIR}/SentinelEDR.service"
+               COPYONLY)
 # --- CPack Configuration ---
 set_target_properties(${MAIN_EXECUTABLE_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

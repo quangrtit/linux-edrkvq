@@ -127,8 +127,8 @@ void* socket_thread(void* arg) {
     }
     
     printf("[Server Thread] Listening on %s:%d\n", SERVER_IP, PORT);
-    
-    while (!exiting) {
+    int server_stop = 0;
+    while (!server_stop) {
         fd_set fds;
         struct timeval tv;
         FD_ZERO(&fds);
@@ -137,7 +137,6 @@ void* socket_thread(void* arg) {
         tv.tv_usec = 0;
         
         if (select(server_fd + 1, &fds, NULL, NULL, &tv) > 0) {
-            printf("112\n");
             new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen);
             if (new_socket < 0) {
                 if (errno != EINTR) {
@@ -155,6 +154,12 @@ void* socket_thread(void* arg) {
             while ((valread = recv(new_socket, buffer, BUFFER_SIZE - 1, 0)) > 0) {
                 buffer[valread] = '\0';
                 printf("[Server Thread] Received %zd bytes: %s\n", valread, buffer);
+                //stop service
+                if(strcmp(buffer, "stop_service") == 0) {
+                    printf("[Server Thread] Stop service");
+                    server_stop = 1;
+                    break;
+                }
             }
             
             if (valread == 0) {
@@ -167,6 +172,8 @@ void* socket_thread(void* arg) {
             
             close(new_socket);
         }
+        if(server_stop) {exiting = 1;}
+        if(exiting) {server_stop = 1;}
     }
     
     close(server_fd);

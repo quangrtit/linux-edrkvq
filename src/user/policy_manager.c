@@ -138,6 +138,13 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             apply_process_policy(skel, policy.pid, &policy);
         }
     }
+    // whitelist pid 
+    __u32 pid = getpid();  
+    __u8 flag = 1;
+    int err = bpf_map__update_elem(skel->maps.whitelist_pid_map, &pid, sizeof(pid), &flag, sizeof(flag), BPF_ANY);
+    if (err) {
+        perror("Failed to add PID to whitelist");
+    }
 
     cJSON_Delete(root);
     free(json_string);

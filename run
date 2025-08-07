@@ -32,5 +32,5 @@ trace log:
   sudo bpftool prog tracelog
   
 sudo LD_PRELOAD=/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/LD_PRELOAD/hack.so ./SentinelEDR
-echo "Hello from client" | nc 192.168.159.128 8080
+echo -n "Hello from client" | nc 192.168.159.128 8080
 sudo ls -l /proc/4311/fd | grep socket
