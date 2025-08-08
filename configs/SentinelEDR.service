@@ -1,14 +1,15 @@
 [Unit]
 Description=Self Defense Daemon
-After=network.target
 
 [Service]
 ExecStart=/usr/local/bin/SentinelEDR
-Restart=always
-RestartSec=2
+Restart=no
 User=root
 ProtectSystem=full
 NoNewPrivileges=true
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=2
 
 [Install]
 WantedBy=multi-user.target

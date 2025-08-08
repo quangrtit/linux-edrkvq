@@ -41,11 +41,14 @@ struct file_policy_value {
     bool block_chmod;
     bool block_symlink_create;
     bool block_hardlink_create;
+    bool block_dpexe;
 };
 
 typedef __u32 process_policy_key_t;
 struct process_policy_value {
     __u32 pid; 
+    char path[MAX_PATH_LEN];
+    __u64 inode;
     __u8 block_termination;
     __u8 block_injection;
 };

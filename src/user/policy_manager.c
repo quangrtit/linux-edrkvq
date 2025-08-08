@@ -17,32 +17,99 @@ const char *get_policy_path() {
     return env ? env : DEFAULT_POLICY_FILE_PATH;
 }
 
+
+static int update_policy_map(struct self_defense_bpf *skel, __u64 key, const struct file_policy_value *value) {
+    int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
+    return err;
+}
+
 int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value) {
-    struct stat st;
-    if (stat(path, &st) != 0) {
+    struct stat st_stat;
+    struct stat st_lstat;
+    int err_stat = 0, err_lstat = 0;
+    __u64 key_stat = 0, key_lstat = 0;
+    unsigned int user_major, user_minor;
+    __u64 kernel_compatible_dev;
+
+    if (stat(path, &st_stat) != 0) {
         fprintf(stderr, "[user space policy_manager.c] Failed to stat file '%s': %s\n", path, strerror(errno));
         return -1;
     }
 
-    unsigned int user_major = major(st.st_dev);
-    unsigned int user_minor = minor(st.st_dev);
+    user_major = major(st_stat.st_dev);
+    user_minor = minor(st_stat.st_dev);
+    kernel_compatible_dev = KERNEL_MKDEV(user_major, user_minor);
+    key_stat = (kernel_compatible_dev << 32) | (__u64)st_stat.st_ino;
 
-    __u64 kernel_compatible_dev = KERNEL_MKDEV(user_major, user_minor);
-
-    __u64 key = (kernel_compatible_dev << 32) | (__u64)st.st_ino;
-
-    int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
-    if (err) {
-        fprintf(stderr, "[user space policy_manager.c] Failed to update file policy for '%s': %s\n", path, strerror(errno));
-        return err;
+    err_stat = update_policy_map(skel, key_stat, value);
+    if (err_stat) {
+        fprintf(stderr, "[user space policy_manager.c] Failed to update file policy for target '%s' (key=0x%llx): %s\n",
+                path, (unsigned long long)key_stat, strerror(errno));
+    } else {
+        printf("[user space policy_manager.c] Applied file policy (target) for '%s'. Key=0x%llx\n",
+               path, (unsigned long long)key_stat);
     }
 
-    printf("[user space policy_manager.c] Applied file policy for '%s' (user_dev=0x%llx, user_ino=0x%llx, kernel_compatible_dev=0x%llx). Final Key=0x%llx\n",
-           path, (unsigned long long)st.st_dev, (unsigned long long)st.st_ino,
-           (unsigned long long)kernel_compatible_dev, (unsigned long long)key);
-    printf("[user space policy_manager.c] User space debug: major=%u, minor=%u\n", user_major, user_minor);
-    return 0;
+    if (lstat(path, &st_lstat) != 0) {
+        fprintf(stderr, "[user space policy_manager.c] lstat failed for '%s': %s\n", path, strerror(errno));
+    } else {
+        unsigned int link_major = major(st_lstat.st_dev);
+        unsigned int link_minor = minor(st_lstat.st_dev);
+        __u64 kernel_dev_link = KERNEL_MKDEV(link_major, link_minor);
+        key_lstat = (kernel_dev_link << 32) | (__u64)st_lstat.st_ino;
+
+        if (key_lstat == key_stat) {
+            printf("[user space policy_manager.c] Target and link resolved to same key for '%s' (0x%llx).\n",
+                   path, (unsigned long long)key_stat);
+            err_lstat = 0; /* nothing to do */
+        } else {
+            err_lstat = update_policy_map(skel, key_lstat, value);
+            if (err_lstat) {
+                fprintf(stderr, "[user space policy_manager.c] Failed to update file policy for link '%s' (key=0x%llx): %s\n",
+                        path, (unsigned long long)key_lstat, strerror(errno));
+            } else {
+                printf("[user space policy_manager.c] Applied file policy (link) for '%s'. Key=0x%llx\n",
+                       path, (unsigned long long)key_lstat);
+            }
+        }
+    }
+
+    printf("[user space policy_manager.c] User space debug for '%s': stat_dev=0x%llx stat_ino=0x%llx, lstat_dev=0x%llx lstat_ino=0x%llx\n",
+           path,
+           (unsigned long long)st_stat.st_dev, (unsigned long long)st_stat.st_ino,
+           (unsigned long long)st_lstat.st_dev, (unsigned long long)st_lstat.st_ino);
+
+    if (err_stat == 0 || err_lstat == 0) {
+        return 0;
+    }
+    return -1;
 }
+// int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value) {
+//     struct stat st;
+//     if (stat(path, &st) != 0) {
+//         fprintf(stderr, "[user space policy_manager.c] Failed to stat file '%s': %s\n", path, strerror(errno));
+//         return -1;
+//     }
+
+//     unsigned int user_major = major(st.st_dev);
+//     unsigned int user_minor = minor(st.st_dev);
+
+//     __u64 kernel_compatible_dev = KERNEL_MKDEV(user_major, user_minor);
+
+//     __u64 key = (kernel_compatible_dev << 32) | (__u64)st.st_ino;
+//     printf("this is key: %lld", key);
+//     int err = bpf_map__update_elem(skel->maps.file_protection_policy, &key, sizeof(key), (void *)value, sizeof(*value), BPF_ANY);
+//     if (err) {
+//         fprintf(stderr, "[user space policy_manager.c] Failed to update file policy for '%s': %s\n", path, strerror(errno));
+//         return err;
+//     }
+
+//     printf("[user space policy_manager.c] Applied file policy for '%s' (user_dev=0x%llx, user_ino=0x%llx, kernel_compatible_dev=0x%llx). Final Key=0x%llx\n",
+//            path, (unsigned long long)st.st_dev, (unsigned long long)st.st_ino,
+//            (unsigned long long)kernel_compatible_dev, (unsigned long long)key);
+//     printf("[user space policy_manager.c] User space debug: major=%u, minor=%u\n", user_major, user_minor);
+//     return 0;
+// }
 
 int apply_process_policy(struct self_defense_bpf *skel, __u32 pid, const struct process_policy_value *value)
 {
@@ -112,7 +179,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             policy.block_chmod = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_chmod"));
             policy.block_symlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_symlink_create"));
             policy.block_hardlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_hardlink_create"));
-            
+            policy.block_dpexe = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_dpexe"));
             // printf("[user space policy_manager.c] 11 1111111 1 %s\n", policy.path);
             apply_file_policy(skel, policy.path, &policy);
         }
@@ -132,6 +199,24 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
                 continue;
             }
             policy.pid = (__u32)pid_json->valueint;
+
+            cJSON *dentry_json_process = cJSON_GetObjectItemCaseSensitive(rule_item, "path");
+            if (cJSON_IsString(dentry_json_process) && dentry_json_process->valuestring != NULL) {
+                memset(&policy.path, 0, sizeof(policy.path));
+                strncpy(policy.path, dentry_json_process->valuestring, sizeof(policy.path) - 1);
+                policy.path[sizeof(policy.path) - 1] = '\0';  
+            }
+            // get inode elf
+            struct stat st;
+            if (stat(policy.path, &st) != 0) {
+                fprintf(stderr, "[user space policy_manager.c] Failed to stat file '%s': %s\n", policy.path, strerror(errno));
+                return -1;
+            }
+            unsigned int user_major = major(st.st_dev);
+            unsigned int user_minor = minor(st.st_dev);
+            __u64 kernel_compatible_dev = KERNEL_MKDEV(user_major, user_minor);
+            __u64 key = (kernel_compatible_dev << 32) | (__u64)st.st_ino;
+            policy.inode = key;
             policy.block_termination = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_termination"));
             policy.block_injection = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_injection"));
             

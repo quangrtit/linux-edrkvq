@@ -25,6 +25,7 @@
 
 
 static volatile sig_atomic_t exiting = 0;
+static volatile int exit_code = 1;
 
 static int handle_event(void *ctx, void *data, size_t data_sz) {
     const struct log_debug *log = data;
@@ -55,7 +56,17 @@ static int handle_event(void *ctx, void *data, size_t data_sz) {
 }
 
 static void sig_handler(int sig) {
-    exiting = 1;
+    if (sig == SIGTERM) {
+        if (exiting) {
+            printf("[Signal Handler] Received SIGTERM and stop_service command, exiting.\n");
+            exit_code = 0;
+            return;
+        } else {
+            printf("[Signal Handler] Received SIGTERM but no stop_service command, ignoring.\n");
+            return;
+        }
+    }
+    printf("[Signal Handler] Received signal %d but ignoring.\n", sig);
 }
 
 char* get_local_ip() {
@@ -158,6 +169,7 @@ void* socket_thread(void* arg) {
                 if(strcmp(buffer, "stop_service") == 0) {
                     printf("[Server Thread] Stop service");
                     server_stop = 1;
+                    exit_code = 0;
                     break;
                 }
             }
@@ -187,7 +199,9 @@ int main() {
     int err;
 
     signal(SIGINT, sig_handler);
-
+    signal(SIGTERM, sig_handler);
+    signal(SIGHUP, sig_handler);
+    signal(SIGQUIT, sig_handler);
     // Load and verify BPF program
     skel = self_defense_bpf__open_and_load();
     if (!skel) {
@@ -237,5 +251,5 @@ int main() {
 cleanup:
     ring_buffer__free(rb);
     self_defense_bpf__destroy(skel);
-    return 0;
+    return exit_code;
 }

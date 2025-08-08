@@ -1,7 +1,7 @@
 {
   "file_protection_rules": [
     {
-      "path": "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
+      "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -10,11 +10,12 @@
       "block_move": true,
       "block_chmod": true,
       "block_symlink_create": true,
-      "block_hardlink_create": true
+      "block_hardlink_create": true,
+      "block_dpexe": false
     },
     {
       "path": "/etc/SentinelEDR/self_defense_policy.json",
-      "block_read": true,
+      "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
       "block_unlink": true,
@@ -22,7 +23,47 @@
       "block_move": true,
       "block_chmod": true,
       "block_symlink_create": true,
-      "block_hardlink_create": true
+      "block_hardlink_create": true,
+      "block_dpexe": false
+    },
+    {
+      "path": "/etc/systemd/system/multi-user.target.wants/SentinelEDR.service",
+      "block_read": false,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_move": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true,
+      "block_dpexe": false
+    },
+    {
+      "path": "/etc/systemd/system/SentinelEDR.service",
+      "block_read": false,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_move": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true,
+      "block_dpexe": false
+    },
+    {
+      "path": "/usr/local/bin/SentinelEDR",
+      "block_read": false,
+      "block_write": true,
+      "block_truncate_create": true,
+      "block_unlink": true,
+      "block_rename": true,
+      "block_move": true,
+      "block_chmod": true,
+      "block_symlink_create": true,
+      "block_hardlink_create": true,
+      "block_dpexe": true
     }
   ],
   "folder_protection_rules": [
@@ -33,7 +74,9 @@
   ],
   "process_protection_rules": [
     {
-      "pid": 1234,                
+      "pid": 1234,  
+      "path": "/usr/local/bin/SentinelEDR",
+      "inode": -1,
       "block_termination": true,
       "block_injection": true       
     }

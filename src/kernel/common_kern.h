@@ -33,6 +33,7 @@
 #define MAP_ANONYMOUS 0x20
 #define MAP_PRIVATE   0x02
 #define MAP_SHARED    0x01
+#define S_ISLNK(m) (((m) & 0170000) == 0120000)
 enum log_level {
     INFO,
     WARNING,
@@ -62,11 +63,14 @@ struct file_policy_value {
     __u8 block_chmod;
     __u8 block_symlink_create;
     __u8 block_hardlink_create;
+    __u8 block_dpexe;
 };
 
 typedef __u32 process_policy_key_t;
 struct process_policy_value {
     __u32 pid; 
+    char path[MAX_PATH_LEN];
+    __u64 inode;
     __u8 block_termination;
     __u8 block_injection;
 };

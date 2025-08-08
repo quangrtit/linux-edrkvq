@@ -101,14 +101,12 @@ int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentr
         send_debug_log(INFO, "[inode_unlink] returned early due to existing denial");
         return ret;
     }
-
-    // __u64 uid_gid = bpf_get_current_uid_gid();
-    // __u32 uid = (uid_gid & 0xFFFFFFFF);
-    __u32 pid = bpf_get_current_pid_tgid() >> 32;
-    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    if (flag && *flag == 1) {
-        return 0;  
-    }
+    
+    // __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    // if (flag && *flag == 1) {
+    //     return 0;  
+    // }
     // if (uid == 0) {
     //     send_debug_log(INFO, "[inode_unlink] Admin user detected, allowing unlink");
     //     return 0;
@@ -116,11 +114,29 @@ int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentr
     // char dentry_name_buf[NAME_MAX];
     // const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
     // bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    // bpf_printk("INFO, [kernel space inode_unlink] Blocked unlink due to policy, %s", dentry_name_buf);
     if (!dentry) {
         return 0;
     }
     struct file_policy_value *policy = lookup_file_policy(dentry);
+    // struct inode *target_inode;
+    // BPF_CORE_READ_INTO(&target_inode, dentry, d_inode);
+    // umode_t mode;
+    // BPF_CORE_READ_INTO(&mode, target_inode, i_mode);
+    // if (S_ISLNK(mode)) {
+    //     char dentry_name_buf[NAME_MAX];
+    //     const unsigned char *dentry_name_ptr = BPF_CORE_READ(dentry, d_name.name);
+    //     bpf_core_read_str(&dentry_name_buf, sizeof(dentry_name_buf), dentry_name_ptr);
+    //     bpf_printk("INFO, [kernel space inode_unlink] Blocked unlink due to policy yes yes 11111, %s", dentry_name_buf);
+    //     if(policy) {
+    //         bpf_printk("YES YES YES ");
+    //     }
+    //     else {
+    //         bpf_printk("NO NO NO");
+    //     }
+    // }
     if (policy && policy->block_unlink) {
+        bpf_printk("BLOCK_ACTION, [kernel space inode_unlink] Blocked unlink due to policy");
         send_debug_log(BLOCKED_ACTION, "[kernel space inode_unlink] Blocked unlink due to policy");
         return -EPERM;
     }
@@ -133,14 +149,14 @@ int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentr
         send_debug_log(INFO, "[kernel space path_unlink] returned early due to existing denial");
         return ret;
     }
-
+    // bpf_printk("INFO, [kernel space path_unlink] Blocked unlink due to policy");
     // __u64 uid_gid = bpf_get_current_uid_gid();
     // __u32 uid = (uid_gid & 0xFFFFFFFF);
-    __u32 pid = bpf_get_current_pid_tgid() >> 32;
-    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    if (flag && *flag == 1) {
-        return 0;  
-    }
+    // __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    // if (flag && *flag == 1) {
+    //     return 0;  
+    // }
     // if (uid == 0) {
     //     send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
     //     return 0;
@@ -154,6 +170,7 @@ int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentr
     }
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if (policy && policy->block_unlink) {
+        bpf_printk("BLOCK_ACTION, [kernel space path_unlink] Blocked unlink due to policy");
         send_debug_log(BLOCKED_ACTION, "[kernel space path_unlink] Blocked unlink due to policy");
         return -EPERM;
     }
@@ -182,11 +199,13 @@ int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
     
     // for write
     if ((mask & MAY_WRITE) && policy && policy->block_write) {
+        bpf_printk("BLOCK_ACTION, [kernel space file_permission] Write access denied");
         send_debug_log(BLOCKED_ACTION, "[kernel space file_permission] Write access denied");
         return -EACCES;
     }
     // for read 
     if (mask & MAY_READ && policy && policy->block_read) {
+        bpf_printk("BLOCK_ACTION, [kernel space file_permission] Read access denied");
         send_debug_log(BLOCKED_ACTION, "[kernel space file_permission] Read access denied");
         return -EACCES;
     }
@@ -213,6 +232,7 @@ int BPF_PROG(protect_rename_move_file,
     struct file_policy_value *policy = lookup_file_policy(old_dentry);
     
     if (policy && (policy->block_rename || policy->block_move)) {
+        bpf_printk("BLOCK_ACTION, [kernel space inode_rename] move or rename access denined");
         send_debug_log(BLOCKED_ACTION, "[kernel space inode_rename] move or rename access denined");
         return -EPERM;
     }
@@ -237,6 +257,7 @@ int BPF_PROG(block_trunc_file, struct file *file) {
     }
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if ((file->f_flags & O_TRUNC) && policy && policy->block_truncate_create) {
+        bpf_printk("BLOCK_ACTION, [kernel space file_open] override file by O_TRUNC access denined");
         send_debug_log(BLOCKED_ACTION, "[kernel space file_open] override file by O_TRUNC access denined");
         return -EPERM;
     }
@@ -272,6 +293,7 @@ int BPF_PROG(block_inode_setattr, struct mnt_idmap *idmap, struct dentry *dentry
         // umode_t new_mode = attr->ia_mode & 0777;
         umode_t new_mode = BPF_CORE_READ(attr, ia_mode) & 0777;
         if (old_mode != new_mode) {
+            bpf_printk("BLOCK_ACTION, [kernel space inode_setattr] Block chmod attempt");
             send_debug_log(BLOCKED_ACTION, "[kernel space inode_setattr] Block chmod attempt");
             return -EPERM;
         }
@@ -304,6 +326,7 @@ int BPF_PROG(block_path_chmod, struct path *path, umode_t mode) {
     umode_t new_mode = mode & 0777;
 
     if (old_mode != new_mode && policy->block_chmod) {
+        bpf_printk("BLOCK_ACTION, [kernel space path_chmod] Block chmod attempt");
         send_debug_log(BLOCKED_ACTION, "[kernel space path_chmod] Block chmod attempt");
         return -EPERM;
     } 
@@ -337,6 +360,7 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 
     struct file_policy_value *policy = lookup_file_policy(dentry);
     if (policy && policy->block_write) {
+        bpf_printk("BLOCK_ACTION, [kernel space mmap_file] Blocked mmap(PROT_WRITE) on protected file");
         send_debug_log(BLOCKED_ACTION, "[kernel space mmap_file] Blocked mmap(PROT_WRITE) on protected file");
         return -EACCES;
     }
@@ -361,51 +385,57 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 
 // inode_permission
 // all protect processes
-// SEC("lsm/task_kill")
-// int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
-// {
+SEC("lsm/task_kill")
+int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
+{
     
-//     // char* comm = BPF_CORE_READ(p, comm);
-//     // if(bpf_strncmp(comm, sizeof(comm), "edr_main") == 0) {
-//     //     send_debug_log(INFO, comm);
-//     // }
-//     // if(bpf_strncmp(comm, sizeof(comm), "edr_launcher") == 0) {
-//     //     send_debug_log(INFO, comm);
-//     // }
-//     __u32 pid = BPF_CORE_READ(p, pid);
-//     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-//     if (flag && *flag == 1) {
-//         return 0;  
-//     }
-//     struct process_policy_value *policy = lookup_process_policy(pid);
-//     // bpf_printk("warning termination signal %d to PID %d", sig, pid);
-//     if (policy && policy->block_termination) {
-//         send_debug_log(BLOCKED_ACTION, "[kernel space task_kill] Blocked termination");
-//         return -EPERM;
-//     }
-//     return 0;
-// }
+    char* comm = BPF_CORE_READ(p, comm);
+    // if(bpf_strncmp(comm, sizeof(comm), "edr_main") == 0) {
+    //     send_debug_log(INFO, comm);
+    // }
+    // if(bpf_strncmp(comm, sizeof(comm), "edr_launcher") == 0) {
+    //     send_debug_log(INFO, comm);
+    // }
+    __u32 pid = BPF_CORE_READ(p, pid);
+    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    // if(bpf_strncmp(comm, sizeof(comm), "SentinelEDR") == 0) {
+    //     bpf_printk("this is : %s", comm);
+    //     bpf_printk("that is : %d", pid);
+    // }
+    
+    // if (flag && *flag == 1) {
+    //     return 0;  
+    // }
+    struct process_policy_value *policy = lookup_process_policy(pid);
+    // bpf_printk("warning termination signal %d to PID %d", sig, pid);
+    if (policy && policy->block_termination) {
+        bpf_printk("BLOCK_ACTION, [kernel space task_kill] Blocked termination");
+        send_debug_log(BLOCKED_ACTION, "[kernel space task_kill] Blocked termination");
+        return -EPERM;
+    }
+    return 0;
+}
 
-// SEC("lsm/ptrace_access_check")
-// int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
-// {
-//     __u32 pid = BPF_CORE_READ(child, pid);
-//     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-//     if (flag && *flag == 1) {
-//         return 0;  
-//     }
-//     __u32 tracer_pid = bpf_get_current_pid_tgid() >> 32;
-//     if(tracer_pid == pid) {
-//         return 0;
-//     }
-//     struct process_policy_value *policy = lookup_process_policy(pid);
-//     if (policy && policy->block_injection) {
-//         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked injection shellcode by ptrace");
-//         return -EPERM;  
-//     }
+SEC("lsm/ptrace_access_check")
+int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
+{
+    __u32 pid = BPF_CORE_READ(child, pid);
+    // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    // if (flag && *flag == 1) {
+    //     return 0;  
+    // }
+    // __u32 tracer_pid = bpf_get_current_pid_tgid() >> 32;
+    // if(tracer_pid == pid) {
+    //     return 0;
+    // }
+    struct process_policy_value *policy = lookup_process_policy(pid);
+    if (policy && policy->block_injection) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked injection shellcode by ptrace");
+        return -EPERM;  
+    }
 
-//     return 0;  
-// }
+    return 0;  
+}
 /*
     LSM_HOOK(int, 0, task_setpgid, struct task_struct *p, pid_t pgid)
     LSM_HOOK(int, 0, task_getpgid, struct task_struct *p)
@@ -413,8 +443,23 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 */
 //SEC("lsm/inode_permission")
 // // bprm_creds_for_exec
-// SEC("lsm/bprm_creds_for_exec")
-// int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
-//     send_debug_log(INFO, "[kernel space bprm_creds_for_exec] Block bprm_creds_for_exec");
-//     return 0;
-// }
+SEC("lsm/bprm_creds_for_exec")
+int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
+    // struct file *file;
+    // struct dentry *dentry;
+    // file = BPF_CORE_READ(bprm, file);
+    // if (!file) {
+    //     return 0;
+    // }
+    // dentry = BPF_CORE_READ(file, f_path.dentry);
+    // if (!dentry) {
+    //     return 0;
+    // }
+    // struct file_policy_value *policy = lookup_file_policy(dentry);
+    // if(policy && policy->block_dpexe) {
+    //     bpf_printk("[BLOCKED_ACTION], [kernel space bprm_creds_for_exec] Blocked duplicate exe");
+    //     send_debug_log(BLOCKED_ACTION, "[kernel space bprm_creds_for_exec] Blocked duplicate exe");
+    //     return -EPERM;  
+    // }
+    return 0;
+}

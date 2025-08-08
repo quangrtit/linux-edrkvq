@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 project(SentinelEDR C)
-# set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_EXE_LINKER_FLAGS "-static")
 # Tell cmake where to find BpfObject module
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
 # Build vendored libbpf
