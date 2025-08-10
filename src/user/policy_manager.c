@@ -179,7 +179,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             policy.block_chmod = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_chmod"));
             policy.block_symlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_symlink_create"));
             policy.block_hardlink_create = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_hardlink_create"));
-            policy.block_dpexe = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_dpexe"));
+            // policy.block_dpexe = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_dpexe"));
             // printf("[user space policy_manager.c] 11 1111111 1 %s\n", policy.path);
             apply_file_policy(skel, policy.path, &policy);
         }

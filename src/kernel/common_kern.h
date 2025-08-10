@@ -63,7 +63,6 @@ struct file_policy_value {
     __u8 block_chmod;
     __u8 block_symlink_create;
     __u8 block_hardlink_create;
-    __u8 block_dpexe;
 };
 
 typedef __u32 process_policy_key_t;

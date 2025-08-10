@@ -2,7 +2,8 @@
 #define __POLICY_MANAGER_H
 
 #include <cJSON.h>
-#include "self_defense.skel.h"   
+#include "self_defense.skel.h" 
+#include "common_user.h"  
 #include <stdlib.h> 
 #ifndef DEFAULT_POLICY_FILE_PATH
 #define DEFAULT_POLICY_FILE_PATH "/etc/SentinelEDR/self_defense_policy.json"

@@ -11,6 +11,7 @@
 #define NAME_MAX 255
 #define EPERM     1
 #define __u64 long long unsigned int
+#define LOCK_PATH "/var/run/sentinel.lock"
 enum log_level {
     INFO,
     WARNING,
@@ -41,7 +42,6 @@ struct file_policy_value {
     bool block_chmod;
     bool block_symlink_create;
     bool block_hardlink_create;
-    bool block_dpexe;
 };
 
 typedef __u32 process_policy_key_t;

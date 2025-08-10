@@ -102,11 +102,11 @@ int BPF_PROG(protect_delete_secret_file, struct inode *dir, struct dentry *dentr
         return ret;
     }
     
-    // __u32 pid = bpf_get_current_pid_tgid() >> 32;
-    // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
+    __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    if (flag && *flag == 1) {
+        return 0;  
+    }
     // if (uid == 0) {
     //     send_debug_log(INFO, "[inode_unlink] Admin user detected, allowing unlink");
     //     return 0;
@@ -150,13 +150,11 @@ int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentr
         return ret;
     }
     // bpf_printk("INFO, [kernel space path_unlink] Blocked unlink due to policy");
-    // __u64 uid_gid = bpf_get_current_uid_gid();
-    // __u32 uid = (uid_gid & 0xFFFFFFFF);
-    // __u32 pid = bpf_get_current_pid_tgid() >> 32;
-    // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
+    __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    if (flag && *flag == 1) {
+        return 0;  
+    }
     // if (uid == 0) {
     //     send_debug_log(INFO, "[path_unlink] Admin user detected, allowing unlink");
     //     return 0;
@@ -245,9 +243,9 @@ SEC("lsm/file_open")
 int BPF_PROG(block_trunc_file, struct file *file) {
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    if (flag && *flag == 1) {
-        return 0;  
-    }
+    // if (flag && *flag == 1) {
+    //     return 0;  
+    // }
     // char filename[MAX_PATH_LEN] = {};
     // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
     // send_debug_log(WARNING, filename);
@@ -343,9 +341,9 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 {
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    if (flag && *flag == 1) {
-        return 0;  
-    }
+    // if (flag && *flag == 1) {
+    //     return 0;  
+    // }
     if (!(prot & PROT_WRITE)) {
         return 0;
     }
@@ -445,21 +443,6 @@ int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 // // bprm_creds_for_exec
 SEC("lsm/bprm_creds_for_exec")
 int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
-    // struct file *file;
-    // struct dentry *dentry;
-    // file = BPF_CORE_READ(bprm, file);
-    // if (!file) {
-    //     return 0;
-    // }
-    // dentry = BPF_CORE_READ(file, f_path.dentry);
-    // if (!dentry) {
-    //     return 0;
-    // }
-    // struct file_policy_value *policy = lookup_file_policy(dentry);
-    // if(policy && policy->block_dpexe) {
-    //     bpf_printk("[BLOCKED_ACTION], [kernel space bprm_creds_for_exec] Blocked duplicate exe");
-    //     send_debug_log(BLOCKED_ACTION, "[kernel space bprm_creds_for_exec] Blocked duplicate exe");
-    //     return -EPERM;  
-    // }
+    
     return 0;
 }

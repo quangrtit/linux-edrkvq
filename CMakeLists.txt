@@ -66,6 +66,7 @@ set(USER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/user")
 set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/utils.c
 )
 
 set(MAIN_EXECUTABLE_NAME ${CMAKE_PROJECT_NAME})

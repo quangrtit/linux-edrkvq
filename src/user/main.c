@@ -11,7 +11,7 @@
 #include "common_user.h"                    
 #include "self_defense.skel.h"                  
 #include "policy_manager.h"
-
+#include "utils.h"
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -56,16 +56,16 @@ static int handle_event(void *ctx, void *data, size_t data_sz) {
 }
 
 static void sig_handler(int sig) {
-    if (sig == SIGTERM) {
-        if (exiting) {
-            printf("[Signal Handler] Received SIGTERM and stop_service command, exiting.\n");
-            exit_code = 0;
-            return;
-        } else {
-            printf("[Signal Handler] Received SIGTERM but no stop_service command, ignoring.\n");
-            return;
-        }
-    }
+    // if (sig == SIGTERM) {
+    //     if (exiting) {
+    //         printf("[Signal Handler] Received SIGTERM and stop_service command, exiting.\n");
+    //         exit_code = 0;
+    //         return;
+    //     } else {
+    //         printf("[Signal Handler] Received SIGTERM but no stop_service command, ignoring.\n");
+    //         return;
+    //     }
+    // }
     printf("[Signal Handler] Received signal %d but ignoring.\n", sig);
 }
 
@@ -192,16 +192,25 @@ void* socket_thread(void* arg) {
     printf("[Server Thread] Server is shutting down.\n");
     return NULL;
 }
+
 int main() {
+    // check singe instance 
+    int lock_fd;
+    int ret = acquire_lock_and_write_pid(LOCK_PATH, &lock_fd);
+    if (ret != 0) {
+        fprintf(stderr, "Another instance is already running.\n");
+        return 0;
+    }
+    fprintf(stderr, "Ok /// running.\n");
     pthread_t network_thread_id;
     struct self_defense_bpf *skel;
     struct ring_buffer *rb = NULL;
     int err;
 
-    signal(SIGINT, sig_handler);
-    signal(SIGTERM, sig_handler);
-    signal(SIGHUP, sig_handler);
-    signal(SIGQUIT, sig_handler);
+    // signal(SIGINT, sig_handler);
+    // signal(SIGTERM, sig_handler);
+    // signal(SIGHUP, sig_handler);
+    // signal(SIGQUIT, sig_handler);
     // Load and verify BPF program
     skel = self_defense_bpf__open_and_load();
     if (!skel) {
