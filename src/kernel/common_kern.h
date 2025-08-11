@@ -34,6 +34,11 @@
 #define MAP_PRIVATE   0x02
 #define MAP_SHARED    0x01
 #define S_ISLNK(m) (((m) & 0170000) == 0120000)
+
+#define EPERM 1
+#define AF_INET 2
+#define ECONNREFUSED 111
+
 enum log_level {
     INFO,
     WARNING,
@@ -76,4 +81,66 @@ struct process_policy_value {
     __u8 block_setnice;
     __u8 block_setioprio;
 };
+
+// ===================== MAP DEFINITIONS =====================
+// self-defense
+// map debug event 
+struct {
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 1 << 24);
+} debug_events SEC(".maps");
+
+// map whilelist pid
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 2);
+    __type(key, __u32);   // PID
+    __type(value, __u8);  // flag = 1
+} whitelist_pid_map SEC(".maps");
+
+// map file protection
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(file_policy_key_t));
+    __uint(value_size, sizeof(struct file_policy_value));
+    __uint(max_entries, MAX_POLICY_ENTRIES);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+} file_protection_policy SEC(".maps");
+
+// map process protection
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(key_size, sizeof(process_policy_key_t));
+    __uint(value_size, sizeof(struct process_policy_value));
+    __uint(max_entries, MAX_POLICY_ENTRIES);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
+} process_protection_policy SEC(".maps");
+
+static __always_inline void send_debug_log(__u32 level, const char *msg) {
+    struct log_debug *log_entry;
+    log_entry = bpf_ringbuf_reserve(&debug_events, sizeof(*log_entry), 0);
+    if (!log_entry) {
+        return;
+    }
+    log_entry->timestamp_ns = bpf_ktime_get_ns();
+    __u64 pid_tgid = bpf_get_current_pid_tgid();
+    log_entry->pid = pid_tgid >> 32;
+    __u64 uid_gid = bpf_get_current_uid_gid();
+    log_entry->uid = uid_gid & 0xFFFFFFFF;
+    log_entry->level = level;
+    bpf_get_current_comm(&log_entry->comm, sizeof(log_entry->comm));
+    bpf_probe_read_kernel_str(&log_entry->msg, sizeof(log_entry->msg), msg);
+
+    bpf_ringbuf_submit(log_entry, 0);
+}
+
+// ioc_block
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 1024);
+    __type(key, __u32);    // IPv4 in network byte order
+    __type(value, __u8);   // flag (1 = blocked)
+} blocked_ips SEC(".maps");
+
+
 #endif // __COMMON_KERN_H

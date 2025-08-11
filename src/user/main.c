@@ -9,7 +9,8 @@
 #include <time.h>
 #include <pthread.h>
 #include "common_user.h"                    
-#include "self_defense.skel.h"                  
+#include "self_defense.skel.h"  
+#include "ioc_block.skel.h"                
 #include "policy_manager.h"
 #include "utils.h"
 
@@ -203,31 +204,37 @@ int main() {
     }
 
     pthread_t network_thread_id;
-    struct self_defense_bpf *skel;
+    struct self_defense_bpf *skel_self_defense;
+    struct ioc_block_bpf *skel_ioc_block;
     struct ring_buffer *rb = NULL;
-    int err;
+    int err_all;
 
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
     signal(SIGHUP, sig_handler);
     signal(SIGQUIT, sig_handler);
     // Load and verify BPF program
-    skel = self_defense_bpf__open_and_load();
-    if (!skel) {
+    skel_self_defense = self_defense_bpf__open_and_load();
+    skel_ioc_block = ioc_block_bpf__open_and_load();
+    if (!skel_self_defense || !skel_ioc_block) {
         fprintf(stderr, "[user space main.c] Failed to open and load BPF skeleton\n");
         return 1;
     }
     const char *policy_file = get_policy_path();
-    err = load_and_apply_policies(skel, policy_file);
+    err_all = load_and_apply_policies(skel_self_defense, policy_file);
     // Attach tracepoints
-    err = self_defense_bpf__attach(skel);
-    if (err) {
-        fprintf(stderr, "[user space main.c] Failed to attach BPF skeleton: %d\n", err);
+    err_all = self_defense_bpf__attach(skel_self_defense);
+    if (err_all) {
+        fprintf(stderr, "[user space main.c] Failed to attach self-defense BPF skeleton: %d\n", err_all);
         goto cleanup;
     }
-
+    err_all = ioc_block_bpf__attach(skel_ioc_block);
+    if(err_all) {
+        fprintf(stderr, "[user space main.c] Failed to attach ioc-block BPF skeleton: %d\n", err_all);
+        goto cleanup;
+    }
     // Set up ring buffer
-    rb = ring_buffer__new(bpf_map__fd(skel->maps.debug_events), handle_event, NULL, NULL);
+    rb = ring_buffer__new(bpf_map__fd(skel_self_defense->maps.debug_events), handle_event, NULL, NULL);
     if (!rb) {
         fprintf(stderr, "[user space main.c] Failed to create ring buffer\n");
         goto cleanup;
@@ -244,12 +251,11 @@ int main() {
     // printf("#: %d\n", rand());
     if (pthread_create(&network_thread_id, NULL, socket_thread, NULL) != 0) {
         fprintf(stderr, "Failed to create test thread.\n");
-        // goto cleanup;
     }
     while (!exiting) {
-        err = ring_buffer__poll(rb, 10);
-        if (err < 0) {
-            fprintf(stderr, "Error polling ring buffer: %d\n", err);
+        err_all = ring_buffer__poll(rb, 10);
+        if (err_all < 0) {
+            fprintf(stderr, "Error polling ring buffer: %d\n", err_all);
             break;
         }
         // cnt += 1;
@@ -258,7 +264,14 @@ int main() {
     }
     pthread_join(network_thread_id, NULL);
 cleanup:
-    ring_buffer__free(rb);
-    self_defense_bpf__destroy(skel);
+    if (rb) {
+        ring_buffer__free(rb);
+    }
+    if (skel_self_defense) {
+        self_defense_bpf__destroy(skel_self_defense);
+    }
+    if(skel_ioc_block) {
+        ioc_block_bpf__destroy(skel_ioc_block);
+    }
     return exit_code;
 }
