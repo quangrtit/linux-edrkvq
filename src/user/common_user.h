@@ -51,5 +51,8 @@ struct process_policy_value {
     __u64 inode;
     __u8 block_termination;
     __u8 block_injection;
+    __u8 block_prlimit;
+    __u8 block_setnice;
+    __u8 block_setioprio;
 };
 #endif // __COMMON_USER_H

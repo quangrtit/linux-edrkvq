@@ -219,7 +219,9 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
             policy.inode = key;
             policy.block_termination = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_termination"));
             policy.block_injection = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_injection"));
-            
+            policy.block_prlimit = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_prlimit"));
+            policy.block_setnice = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_setnice"));
+            policy.block_setioprio = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "block_setioprio"));
             apply_process_policy(skel, policy.pid, &policy);
         }
     }

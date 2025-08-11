@@ -201,16 +201,16 @@ int main() {
         fprintf(stderr, "Another instance is already running.\n");
         return 0;
     }
-    fprintf(stderr, "Ok /// running.\n");
+
     pthread_t network_thread_id;
     struct self_defense_bpf *skel;
     struct ring_buffer *rb = NULL;
     int err;
 
-    // signal(SIGINT, sig_handler);
-    // signal(SIGTERM, sig_handler);
-    // signal(SIGHUP, sig_handler);
-    // signal(SIGQUIT, sig_handler);
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGHUP, sig_handler);
+    signal(SIGQUIT, sig_handler);
     // Load and verify BPF program
     skel = self_defense_bpf__open_and_load();
     if (!skel) {

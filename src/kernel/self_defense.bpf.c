@@ -383,6 +383,7 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 
 // inode_permission
 // all protect processes
+// block kill process
 SEC("lsm/task_kill")
 int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
 {
@@ -413,7 +414,7 @@ int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int 
     }
     return 0;
 }
-
+//  block debug memory 
 SEC("lsm/ptrace_access_check")
 int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 {
@@ -434,6 +435,93 @@ int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 
     return 0;  
 }
+// block limit resource 
+// hook task_prlimit
+SEC("lsm/task_setrlimit")
+int BPF_PROG(lsm_task_setrlimit, struct task_struct *p, unsigned int resource,
+             struct rlimit *new_rlim)
+{
+    __u32 target_pid = bpf_get_current_pid_tgid() >> 32;
+    __u32 target_pid_real = (__u32)BPF_CORE_READ(p, pid);
+    if (target_pid == target_pid_real) {
+        return 0;
+    }
+    struct process_policy_value * policy = lookup_process_policy(target_pid_real);
+    if (policy && policy->block_prlimit) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit memory");
+        return -EPERM;
+    }
+    return 0;
+}
+// SEC("kprobe/__x64_sys_prlimit64")
+// int BPF_PROG(kp_prlimit_enter)
+// {
+//     send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit memory1");
+//     /* x86_64 syscall args: (pid_t pid, int resource, const struct rlimit *new_limit, struct rlimit *old_limit) */
+//     long arg0 = (long)PT_REGS_PARM1((struct pt_regs *)ctx); /* pid (may be 0 -> current) */
+//     __s32 pid_arg = (__s32)arg0;
+//     bpf_printk("raw=%ld pid_arg=%d", arg0, pid_arg);
+//     __u32 caller_tgid = (bpf_get_current_pid_tgid() >> 32);
+//     __u32 target_tgid;
+
+//     if (pid_arg == 0) {
+//         target_tgid = caller_tgid;
+//     } else if (pid_arg < 0) {
+//         // Negative pid not expected for prlimit; treat as no-op
+//         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit memory2");
+//         return 0;
+//     } else {
+//         target_tgid = ( __u32 ) pid_arg;
+//     }
+//     bpf_printk("this is pid process 1 %d", target_tgid);
+//     struct process_policy_value *policy = lookup_process_policy(target_tgid);
+//     if(!(policy && policy->block_prlimit)) {
+//         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit memory3");
+//         return 0;
+//     }
+//     if (caller_tgid == target_tgid) {
+//         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit memory4");
+//         return 0;
+//     }
+//     send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit memory");
+//     // Deny the syscall: require kernel helper bpf_override_return
+//     // return value is errno-like negative; use -EPERM
+//     bpf_override_return((struct pt_regs *)ctx, -EPERM);
+//     return 0;
+// }
+// Hook task_setnice
+SEC("lsm/task_setnice")
+int BPF_PROG(block_task_setnice, struct task_struct *p, int nice)
+{
+    __u32 target_pid = BPF_CORE_READ(p, pid);
+    __u32 caller_pid = bpf_get_current_pid_tgid() >> 32;
+    if (caller_pid == target_pid) {
+        return 0;
+    }
+    struct process_policy_value *policy = lookup_process_policy(target_pid);
+    if (policy && policy->block_setnice) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit CPU");
+        return -EPERM;
+    }
+    return 0;
+}
+
+// Hook task_setioprio
+SEC("lsm/task_setioprio")
+int BPF_PROG(block_task_setioprio, struct task_struct *p, int ioprio)
+{
+    __u32 target_pid = BPF_CORE_READ(p, pid);
+    __u32 caller_pid = bpf_get_current_pid_tgid() >> 32;
+    if (caller_pid == target_pid) {
+        return 0;
+    }
+    struct process_policy_value *policy = lookup_process_policy(target_pid);
+    if (policy && policy->block_setioprio) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit IO");
+        return -EPERM;
+    }
+    return 0;
+}
 /*
     LSM_HOOK(int, 0, task_setpgid, struct task_struct *p, pid_t pgid)
     LSM_HOOK(int, 0, task_getpgid, struct task_struct *p)
@@ -441,8 +529,8 @@ int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 */
 //SEC("lsm/inode_permission")
 // // bprm_creds_for_exec
-SEC("lsm/bprm_creds_for_exec")
-int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
+// SEC("lsm/bprm_creds_for_exec")
+// int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
     
-    return 0;
-}
+//     return 0;
+// }

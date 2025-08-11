@@ -1,7 +1,7 @@
 {
   "file_protection_rules": [
     {
-      "path": "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
+      "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -73,19 +73,16 @@
       "block_hardlink_create": true
     }
   ],
-  "folder_protection_rules": [
-    {
-      "path": "test_folder_vcs0",
-      "block_kill": true
-    }   
-  ],
   "process_protection_rules": [
     {
       "pid": 1234,  
       "path": "/usr/local/bin/SentinelEDR",
       "inode": -1,
       "block_termination": true,
-      "block_injection": true       
+      "block_injection": true, 
+      "block_prlimit": true,
+      "block_setnice": true,
+      "block_setioprio": true
     }
   ]
 }
