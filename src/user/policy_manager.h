@@ -6,7 +6,7 @@
 #include "common_user.h"  
 #include <stdlib.h> 
 #ifndef DEFAULT_POLICY_FILE_PATH
-#define DEFAULT_POLICY_FILE_PATH "/etc/SentinelEDR/self_defense_policy.json"
+#define DEFAULT_POLICY_FILE_PATH "/var/lib/SentinelEDR/self_defense_policy.json"
 #endif
 
 const char *get_policy_path();

@@ -171,12 +171,12 @@ int BPF_PROG(protect_secret_file_0, const struct path *dir, struct dentry *dentr
 SEC("lsm/file_permission")
 int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
     
-    
-    // struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     // char filename[MAX_PATH_LEN] = {};
     // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    bpf_printk("this is pid: %d\n", pid);
     if (flag && *flag == 1) {
         return 0;  
     }

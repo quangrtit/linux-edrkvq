@@ -245,12 +245,16 @@ int load_and_apply_policies(struct self_defense_bpf *skel, const char *json_file
         perror("Failed to add PID to whitelist");
     }
 
-
+    // FILE *fx = fopen("/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt", "w");
+    // if(!fx) {
+    //     perror("fuck ???? \n");
+    // }
     char *updated_json = cJSON_Print(root);
     fp = fopen(json_filepath, "w");
     if (!fp) {
         perror("fopen write 1 1 1 1 1");
         cJSON_Delete(root);
+        free(json_string);
         free(updated_json);
         return 1;
     }

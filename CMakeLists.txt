@@ -120,7 +120,7 @@ foreach(app_item ${apps})
     add_dependencies(${MAIN_EXECUTABLE_NAME} ${app_stem_item}_skel)
 endforeach()
 
-set(DEFAULT_POLICY_FILE_PATH "/etc/SentinelEDR/self_defense_policy.json" CACHE STRING "Default path to self defense policy JSON file")
+set(DEFAULT_POLICY_FILE_PATH "/var/lib/SentinelEDR/self_defense_policy.json" CACHE STRING "Default path to self defense policy JSON file")
 target_compile_definitions(SentinelEDR PRIVATE DEFAULT_POLICY_FILE_PATH=\"${DEFAULT_POLICY_FILE_PATH}\")
 configure_file("${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
                "${CMAKE_BINARY_DIR}/self_defense_policy.json"
@@ -146,7 +146,7 @@ set(CONFIG_FILES
     "${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
 )
 # Define the installation destination for config files (e.g., /etc/sentineledr)
-set(CONFIG_INSTALL_DIR "/etc/${CMAKE_PROJECT_NAME}")
+set(CONFIG_INSTALL_DIR "/var/lib/${CMAKE_PROJECT_NAME}")
 # Install config files if the list is not empty
 if(CONFIG_FILES)
     install(FILES ${CONFIG_FILES} DESTINATION ${CONFIG_INSTALL_DIR}

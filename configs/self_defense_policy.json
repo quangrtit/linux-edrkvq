@@ -1,7 +1,7 @@
 {
   "file_protection_rules": [
     {
-      "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
+      "path": "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
       "inode": -1,
       "inode_symlink": -1,
       "block_read": false,
@@ -15,7 +15,7 @@
       "block_hardlink_create": true
     },
     {
-      "path": "/etc/SentinelEDR/self_defense_policy.json",
+      "path": "/var/lib/SentinelEDR/self_defense_policy.json",
       "inode": -1,
       "inode_symlink": -1,
       "block_read": false,
