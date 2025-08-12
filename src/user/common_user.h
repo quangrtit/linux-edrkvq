@@ -11,6 +11,7 @@
 #define NAME_MAX 255
 #define EPERM     1
 #define __u64 long long unsigned int
+#define __s64 int64_t
 #define LOCK_PATH "/var/run/sentinel.lock"
 enum log_level {
     INFO,
@@ -33,6 +34,8 @@ struct log_debug {
 typedef long long unsigned int file_policy_key_t;
 struct file_policy_value {
     char path[MAX_PATH_LEN];
+    __s64 inode;
+    __s64 inode_symlink;
     bool block_read;
     bool block_write;
     bool block_truncate_create;

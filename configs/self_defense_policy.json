@@ -2,6 +2,8 @@
   "file_protection_rules": [
     {
       "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt",
+      "inode": -1,
+      "inode_symlink": -1,
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -14,6 +16,8 @@
     },
     {
       "path": "/etc/SentinelEDR/self_defense_policy.json",
+      "inode": -1,
+      "inode_symlink": -1,
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -26,6 +30,8 @@
     },
     {
       "path": "/etc/systemd/system/multi-user.target.wants/SentinelEDR.service",
+      "inode": -1,
+      "inode_symlink": -1,
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -38,6 +44,8 @@
     },
     {
       "path": "/etc/systemd/system/SentinelEDR.service",
+      "inode": -1,
+      "inode_symlink": -1,
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -50,6 +58,8 @@
     },
     {
       "path": "/usr/local/bin/SentinelEDR",
+      "inode": -1,
+      "inode_symlink": -1,
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,
@@ -62,6 +72,8 @@
     },
     {
       "path": "/var/run/sentinel.lock",
+      "inode": -1,
+      "inode_symlink": -1,
       "block_read": false,
       "block_write": true,
       "block_truncate_create": true,

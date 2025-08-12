@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
-project(SentinelEDR C)
+project(SentinelEDR LANGUAGES C CXX)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXE_LINKER_FLAGS "-static")
 # Tell cmake where to find BpfObject module
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
@@ -64,9 +67,9 @@ file(GLOB apps ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/*.bpf.c)
 set(KERNEL_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/kernel")
 set(USER_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/user") 
 set(USER_SPACE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/utils.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/utils.cpp
 )
 
 set(MAIN_EXECUTABLE_NAME ${CMAKE_PROJECT_NAME})

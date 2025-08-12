@@ -11,7 +11,7 @@
 
 const char *get_policy_path();
 
-int apply_file_policy(struct self_defense_bpf *skel, const char *path, const struct file_policy_value *value);
+int apply_file_policy(struct self_defense_bpf *skel, const char *path, struct file_policy_value *value, const char *json_filepath);
 
 int apply_process_policy(struct self_defense_bpf *skel, __u32 pid, const struct process_policy_value *value);
 

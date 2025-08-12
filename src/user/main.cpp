@@ -1,26 +1,31 @@
+#include <arpa/inet.h>
+#include <errno.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <netinet/ip_icmp.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/resource.h>
 #include <sys/prctl.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <time.h>
-#include <pthread.h>
-#include "common_user.h"                    
-#include "self_defense.skel.h"  
-#include "ioc_block.skel.h"                
+#include <unistd.h>
+
+#include "common_user.h"
+
+extern "C" {
+#include "ioc_block.skel.h"
+#include "self_defense.skel.h"
+}
+
 #include "policy_manager.h"
 #include "utils.h"
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip_icmp.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <ifaddrs.h>
-// #define SERVER_IP "192.168.159.128"
+
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
@@ -29,7 +34,7 @@ static volatile sig_atomic_t exiting = 0;
 static volatile int exit_code = 1;
 
 static int handle_event(void *ctx, void *data, size_t data_sz) {
-    const struct log_debug *log = data;
+    const struct log_debug *log = static_cast<const struct log_debug*>(data);
     struct timespec ts;
     char timestamp_str[32];
 
@@ -213,6 +218,10 @@ int main() {
     signal(SIGTERM, sig_handler);
     signal(SIGHUP, sig_handler);
     signal(SIGQUIT, sig_handler);
+    pid_t pid = getpid();         // Process ID
+    pid_t ppid = getppid();       // Parent PID
+    char process_name[17] = {0};
+    prctl(PR_GET_NAME, (unsigned long)process_name);
     // Load and verify BPF program
     skel_self_defense = self_defense_bpf__open_and_load();
     skel_ioc_block = ioc_block_bpf__open_and_load();
@@ -239,10 +248,6 @@ int main() {
         fprintf(stderr, "[user space main.c] Failed to create ring buffer\n");
         goto cleanup;
     }
-    pid_t pid = getpid();         // Process ID
-    pid_t ppid = getppid();       // Parent PID
-    char process_name[17] = {0};
-    prctl(PR_GET_NAME, (unsigned long)process_name);
     printf("PID: %d, Name: %s [user space main.c] Watching for file deletes... Ctrl+C to stop.\n", pid, process_name);
     // unsigned int seed;
     // seed = 1337;

@@ -234,9 +234,9 @@ SEC("lsm/file_open")
 int BPF_PROG(block_trunc_file, struct file *file) {
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
+    if (flag && *flag == 1) {
+        return 0;  
+    }
     // char filename[MAX_PATH_LEN] = {};
     // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
     // send_debug_log(WARNING, filename);
@@ -332,9 +332,9 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 {
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
+    if (flag && *flag == 1) {
+        return 0;  
+    }
     if (!(prot & PROT_WRITE)) {
         return 0;
     }

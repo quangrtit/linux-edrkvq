@@ -59,6 +59,8 @@ struct log_debug {
 typedef __u64 file_policy_key_t;
 struct file_policy_value {
     char path[MAX_PATH_LEN];
+    __s64 inode;
+    __s64 inode_symlink;
     __u8 block_read;
     __u8 block_write;
     __u8 block_truncate_create;
