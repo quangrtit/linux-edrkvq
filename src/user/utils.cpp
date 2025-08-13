@@ -5,6 +5,42 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/prctl.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <netinet/ip_icmp.h>
+
+char* get_local_ip() {
+    struct ifaddrs *ifaddr, *ifa;
+    static char ip[INET_ADDRSTRLEN];
+
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
+        return NULL;
+    }
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+            const char* addr = inet_ntop(AF_INET, &sa->sin_addr, ip, INET_ADDRSTRLEN);
+
+            if (addr && strncmp(ip, "127.", 4) != 0) {
+                freeifaddrs(ifaddr);
+                return ip;
+            }
+        }
+    }
+
+    freeifaddrs(ifaddr);
+    return NULL;
+}
 
 int acquire_lock_and_write_pid(const char *path, int *out_fd) {
     // Create lock file (rw-------)

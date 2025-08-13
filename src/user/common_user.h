@@ -13,6 +13,8 @@
 #define __u64 long long unsigned int
 #define __s64 int64_t
 #define LOCK_PATH "/var/run/sentinel.lock"
+#define PORT 8080
+#define BUFFER_SIZE 1024
 enum log_level {
     INFO,
     WARNING,
@@ -29,7 +31,6 @@ struct log_debug {
     char msg[LOG_MSG_MAX_LEN];
 };
 
-// typedef char file_policy_key_t[MAX_PATH_LEN];
 
 typedef long long unsigned int file_policy_key_t;
 struct file_policy_value {
@@ -58,4 +59,63 @@ struct process_policy_value {
     __u8 block_setnice;
     __u8 block_setioprio;
 };
+
+
+// IOC type
+enum ioc_event_type {
+    IOC_EVT_EXEC_FILE = 1,   // Execute file
+    IOC_EVT_CONNECT_IP,      // IP Connection
+    IOC_EVT_CMD_CONTROL,     // Receive control command
+};
+
+// Payload for IOC_EXEC_FILE
+struct exec_payload {
+    char file_path[MAX_PATH_LEN];  
+    __u64 inode_id;       
+};
+
+// Payload for IOC_CONNECT_IP
+struct net_payload {
+    __u32 saddr;          
+    __u32 daddr;          
+    __u16 sport;         
+    __u16 dport;          
+};
+
+// Payload for IOC_CMD_CONTROL
+struct cmd_payload {
+    char cmd[NAME_MAX];        
+};
+
+// Event sent from kernel to user
+struct ioc_event {
+    __u64 timestamp_ns;       // Time of occurrence
+    __u32 pid;                // PID of the process
+    __u32 tgid;               // TGID (parent pid)
+    __u32 ppid;               // parent PID
+    __u32 uid;                // UID of the user running the process
+    __u32 gid;                // GID
+
+    enum ioc_event_type type; // Blocked IOC Type
+
+    union {
+        struct {
+            char file_path[MAX_PATH_LEN]; // Executable file path
+            __u64 inode_id;      // file inode (dev<<32 | ino)
+        } exec;
+
+        struct {
+            __u32 saddr;         // Source IP (IPv4)
+            __u32 daddr;         // Destination IP (IPv4)
+            __u16 sport;         // Source port
+            __u16 dport;         // Destination Port
+        } net;
+
+        struct {
+            char cmd[NAME_MAX];       // C2 command or data
+        } cmdctl;
+
+    };
+};
+
 #endif // __COMMON_USER_H

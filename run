@@ -34,6 +34,7 @@ trace log:
 sudo LD_PRELOAD=/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/LD_PRELOAD/hack.so ./SentinelEDR
 echo -n "Hello from client" | nc 192.168.159.128 8080
 sudo ls -l /proc/4311/fd | grep socket
+ps -T -p 1234
 
 cp SentinelEDR-1.0.0-linux-x86_64.deb /home/ubuntu/lib/vcs-ajiant-edr/test_environment/build_test && cp install.sh /home/ubuntu/lib/vcs-ajiant-edr/test_environment/build_test && cp uninstall.sh /home/ubuntu/lib/vcs-ajiant-edr/test_environment/build_test
 cp SentinelEDR-1.0.0-linux-x86_64.deb /home/quang/myLib/vcs-ajiant-edr/test_environment/build_test && cp install.sh /home/quang/myLib/vcs-ajiant-edr/test_environment/build_test && cp uninstall.sh /home/quang/myLib/vcs-ajiant-edr/test_environment/build_test

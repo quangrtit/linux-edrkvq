@@ -84,65 +84,57 @@ struct process_policy_value {
     __u8 block_setioprio;
 };
 
-// ===================== MAP DEFINITIONS =====================
-// self-defense
-// map debug event 
-struct {
-    __uint(type, BPF_MAP_TYPE_RINGBUF);
-    __uint(max_entries, 1 << 24);
-} debug_events SEC(".maps");
+// IOC type
+enum ioc_event_type {
+    IOC_EVT_EXEC_FILE = 1,   // Execute file
+    IOC_EVT_CONNECT_IP,      // IP Connection
+    IOC_EVT_CMD_CONTROL,     // Receive control command
+};
+// Payload for IOC_EXEC_FILE
+struct exec_payload {
+    char file_path[MAX_PATH_LEN];  
+    __u64 inode_id;       
+};
 
-// map whilelist pid
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 2);
-    __type(key, __u32);   // PID
-    __type(value, __u8);  // flag = 1
-} whitelist_pid_map SEC(".maps");
+// Payload for IOC_CONNECT_IP
+struct net_payload {
+    __u32 saddr;          
+    __u32 daddr;          
+    __u16 sport;         
+    __u16 dport;          
+};
 
-// map file protection
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(key_size, sizeof(file_policy_key_t));
-    __uint(value_size, sizeof(struct file_policy_value));
-    __uint(max_entries, MAX_POLICY_ENTRIES);
-    __uint(map_flags, BPF_F_NO_PREALLOC);
-} file_protection_policy SEC(".maps");
+// Payload for IOC_CMD_CONTROL
+struct cmd_payload {
+    char cmd[NAME_MAX];        
+};
+// Event sent from kernel to user
+struct ioc_event {
+    __u64 timestamp_ns;       // Time of occurrence
+    __u32 pid;                // PID of the process
+    __u32 tgid;               // TGID (parent pid)
+    __u32 ppid;               // parent PID
+    __u32 uid;                // UID of the user running the process
+    __u32 gid;                // GID
 
-// map process protection
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(key_size, sizeof(process_policy_key_t));
-    __uint(value_size, sizeof(struct process_policy_value));
-    __uint(max_entries, MAX_POLICY_ENTRIES);
-    __uint(map_flags, BPF_F_NO_PREALLOC);
-} process_protection_policy SEC(".maps");
+    enum ioc_event_type type; // Blocked IOC Type
 
-static __always_inline void send_debug_log(__u32 level, const char *msg) {
-    struct log_debug *log_entry;
-    log_entry = bpf_ringbuf_reserve(&debug_events, sizeof(*log_entry), 0);
-    if (!log_entry) {
-        return;
-    }
-    log_entry->timestamp_ns = bpf_ktime_get_ns();
-    __u64 pid_tgid = bpf_get_current_pid_tgid();
-    log_entry->pid = pid_tgid >> 32;
-    __u64 uid_gid = bpf_get_current_uid_gid();
-    log_entry->uid = uid_gid & 0xFFFFFFFF;
-    log_entry->level = level;
-    bpf_get_current_comm(&log_entry->comm, sizeof(log_entry->comm));
-    bpf_probe_read_kernel_str(&log_entry->msg, sizeof(log_entry->msg), msg);
+    union {
+        struct {
+            char file_path[MAX_PATH_LEN]; // Executable file path
+            __u64 inode_id;      // file inode (dev<<32 | ino)
+        } exec;
 
-    bpf_ringbuf_submit(log_entry, 0);
-}
+        struct {
+            __u32 saddr;         // Source IP (IPv4)
+            __u32 daddr;         // Destination IP (IPv4)
+            __u16 sport;         // Source port
+            __u16 dport;         // Destination Port
+        } net;
 
-// ioc_block
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 1024);
-    __type(key, __u32);    // IPv4 in network byte order
-    __type(value, __u8);   // flag (1 = blocked)
-} blocked_ips SEC(".maps");
-
-
+        struct {
+            char cmd[NAME_MAX];       // C2 command or data
+        } cmdctl;
+    };
+};
 #endif // __COMMON_KERN_H
