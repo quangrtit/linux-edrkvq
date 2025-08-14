@@ -9,8 +9,6 @@
 #include "cJSON.h"
 #include <sys/sysmacros.h>
 
-#define KERNEL_MINORBITS 20
-#define KERNEL_MKDEV(major, minor) ((__u64)(major) << KERNEL_MINORBITS | (minor))
 
 const char *get_policy_path() {
     const char *env = getenv("SENTINEL_POLICY_FILE");

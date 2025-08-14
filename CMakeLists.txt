@@ -70,6 +70,7 @@ set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/executable_ioc_blocker.cpp
 )
 
 set(MAIN_EXECUTABLE_NAME ${CMAKE_PROJECT_NAME})
@@ -89,7 +90,10 @@ foreach(app ${apps})
 endforeach()
 
 add_executable(${MAIN_EXECUTABLE_NAME} ${USER_SPACE_SOURCES})
-# target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE ${LIBBPF_LIBRARIES})
+# --- OpenSSL static library setup ---
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL REQUIRED)
+
 target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     ${LIBBPF_LIBRARIES} 
     -l:libelf.a   
@@ -98,6 +102,8 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     -lpthread     
     -lrt          
     -ldl 
+    OpenSSL::SSL
+    OpenSSL::Crypto
     cjson     
 )
 # Link the main executable to all generated eBPF skeletons

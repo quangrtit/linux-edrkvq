@@ -4,6 +4,28 @@
 #include <stdbool.h>
 #include <stdint.h>  
 #include <linux/types.h> 
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <map>
+#include <unordered_map>
+#include <string>
+#include <sys/fanotify.h>
+#include <poll.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/sysmacros.h>
+#include <signal.h>
+#include <openssl/sha.h>
+#include <cstdio>
+#include <memory>
+#include <cstdlib>
+#include <chrono>
+#include <openssl/evp.h>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 16
 #define MAX_PATH_LEN 128
@@ -12,6 +34,8 @@
 #define EPERM     1
 #define __u64 long long unsigned int
 #define __s64 int64_t
+#define KERNEL_MINORBITS 20
+#define KERNEL_MKDEV(major, minor) ((__u64)(major) << KERNEL_MINORBITS | (minor))
 #define LOCK_PATH "/var/run/sentinel.lock"
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -59,7 +83,13 @@ struct process_policy_value {
     __u8 block_setnice;
     __u8 block_setioprio;
 };
-
+struct FileCloser {
+    void operator()(FILE* fp) const {
+        if (fp) {
+            fclose(fp);
+        }
+    }
+};
 
 // IOC type
 enum ioc_event_type {

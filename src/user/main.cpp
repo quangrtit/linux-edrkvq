@@ -24,7 +24,7 @@ extern "C" {
 
 #include "policy_manager.h"
 #include "utils.h"
-
+#include "executable_ioc_blocker.h"
 
 static volatile sig_atomic_t exiting = 0;
 static volatile int exit_code = 1;
@@ -126,6 +126,7 @@ void *ioc_block_thread(void *arg) {
 }
 
 static void sig_handler(int sig) {
+    exiting = 1;
     printf("[Signal Handler] Received signal %d but ignoring.\n", sig);
 }
 
@@ -231,7 +232,7 @@ int main() {
         fprintf(stderr, "Another instance is already running.\n");
         return 0;
     }
-
+    ExecutableIOCBlocker exe_ioc_blocker(&exiting);
     pthread_t network_thread_id;
     pthread_t self_defense_id;
     pthread_t ioc_block_id;
@@ -292,12 +293,17 @@ int main() {
     if (pthread_create(&ioc_block_id, NULL, ioc_block_thread, rb_ioc_block) != 0) {
         fprintf(stderr, "Failed to create ioc_block thread.\n");
     }
+    exe_ioc_blocker.add_policy("/home/quang/myLib/tmp/test1");
+    exe_ioc_blocker.start();
+
     while (!exiting) {
         sleep(1);
     }
+
     pthread_join(network_thread_id, NULL);
     pthread_join(self_defense_id, NULL);
     pthread_join(ioc_block_id, NULL);
+    exe_ioc_blocker.stop();
 cleanup:
     if (rb_self_defense) {
         ring_buffer__free(rb_self_defense);

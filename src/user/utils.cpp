@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "common_user.h"
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -13,6 +14,7 @@
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <netinet/ip_icmp.h>
+#include <sys/sysmacros.h>
 
 char* get_local_ip() {
     struct ifaddrs *ifaddr, *ifa;
@@ -79,4 +81,65 @@ int acquire_lock_and_write_pid(const char *path, int *out_fd) {
 
     *out_fd = fd; // Keep fd open → keep lock
     return 0;
+}
+
+__u64 get_inode_key(const char* path) {
+    struct stat st;
+    if (stat(path, &st) != 0) return 0;
+    unsigned int user_major = major(st.st_dev);
+    unsigned int user_minor = minor(st.st_dev);
+    __u64 kernel_dev = KERNEL_MKDEV(user_major, user_minor);
+    return (kernel_dev << 32) | (__u64)st.st_ino;
+}
+std::string calculate_sha256_fast(const char* file_path) {
+
+    using file_ptr = std::unique_ptr<FILE, FileCloser>;
+    file_ptr file(fopen(file_path, "rb"));
+    if (!file) return "";
+
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) return "";
+    if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+
+    constexpr size_t BUFFER_SIZE_HASH = 1024 * 1024;
+    unsigned char* buffer = nullptr;
+    if (posix_memalign(reinterpret_cast<void**>(&buffer), 32, BUFFER_SIZE_HASH) != 0) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+    std::unique_ptr<unsigned char[], decltype(&free)> buf_guard(buffer, &free);
+
+    size_t bytes_read = 0;
+    while ((bytes_read = fread(buffer, 1, BUFFER_SIZE_HASH, file.get())) > 0) {
+        if (EVP_DigestUpdate(ctx, buffer, bytes_read) != 1) {
+            EVP_MD_CTX_free(ctx);
+            return "";
+        }
+    }
+    if (ferror(file.get())) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+
+    unsigned char hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len = 0;
+    if (EVP_DigestFinal_ex(ctx, hash, &hash_len) != 1) {
+        EVP_MD_CTX_free(ctx);
+        return "";
+    }
+
+    EVP_MD_CTX_free(ctx);
+
+    static const char hex_chars[] = "0123456789abcdef";
+    char hex_output[EVP_MAX_MD_SIZE*2 + 1];
+    for (unsigned int i = 0; i < hash_len; ++i) {
+        hex_output[i*2]   = hex_chars[(hash[i] >> 4) & 0xF];
+        hex_output[i*2+1] = hex_chars[hash[i] & 0xF];
+    }
+    hex_output[hash_len*2] = 0;
+
+    return std::string(hex_output);
 }
