@@ -58,8 +58,8 @@ int main(int argc, char *argv[]) {
 
     pid_t target_pid = atoi(argv[1]);
 
-    // attack_setnice(target_pid);
-    // attack_setioprio(target_pid);
+    attack_setnice(target_pid);
+    attack_setioprio(target_pid);
     attack_prlimit(target_pid);
 
     return 0;

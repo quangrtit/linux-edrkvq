@@ -71,6 +71,7 @@ set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/policy_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/executable_ioc_blocker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/ioc_database.cpp
 )
 
 set(MAIN_EXECUTABLE_NAME ${CMAKE_PROJECT_NAME})
@@ -104,6 +105,7 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     -ldl 
     OpenSSL::SSL
     OpenSSL::Crypto
+    lmdb        
     cjson     
 )
 # Link the main executable to all generated eBPF skeletons
@@ -111,7 +113,6 @@ foreach(app_item ${apps})
   get_filename_component(app_stem_item ${app_item} NAME_WE)
   target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE ${app_stem_item}_skel)
 endforeach()
-
 # Set include directories for the main executable
 target_include_directories(${MAIN_EXECUTABLE_NAME} PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR} 

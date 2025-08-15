@@ -13,4 +13,7 @@ __u64 get_inode_key(const char* path);
 
 std::string calculate_sha256_fast(const char* file_path);
 
+bool is_elf_fd(int fd);
+bool is_executable_fd(int fd);
+// const char *get_ioc_db_path();
 #endif // __UTILS_H

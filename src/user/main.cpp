@@ -25,6 +25,7 @@ extern "C" {
 #include "policy_manager.h"
 #include "utils.h"
 #include "executable_ioc_blocker.h"
+#include "ioc_database.h"
 
 static volatile sig_atomic_t exiting = 0;
 static volatile int exit_code = 1;
@@ -224,6 +225,37 @@ void* socket_thread(void* arg) {
     return NULL;
 }
 
+// void test_db(IOCDatabase &db) {
+//     IOCMeta meta{
+//             static_cast<uint64_t>(time(nullptr)),
+//             static_cast<uint64_t>(time(nullptr)),
+//             "user_upload"
+//         };
+//     std::string hash_input = calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main");
+//     std::string ip_input = "192.168.1.100";
+//     // db.add_file_hash(hash_input, meta);
+//     // db.add_ip(ip_input, meta);
+//     IOCMeta result;
+//     if(db.get_file_hash(hash_input, result)) {
+
+//         printf("Found file hash:\n");
+//         printf("  first_seen: %ld\n", result.first_seen); 
+//         printf("  last_seen:  %ld\n", result.last_seen); 
+//         printf("  source:     %s\n", result.source.c_str()); 
+//     } else {
+//         printf("File hash not found\n");
+//     }
+
+//     if(db.get_ip("192.168.1.100", result)) {
+//         printf("Found IP:\n");
+//         printf("  first_seen: %ld\n", result.first_seen);
+//         printf("  last_seen: %ld\n", result.last_seen);
+//         printf("  source: %s\n", result.source.c_str());
+//     } else {
+//         printf("IP not found\n");
+//     }
+//     db.dump_database_info();
+// }
 int main() {
     // check singe instance 
     int lock_fd;
@@ -232,7 +264,16 @@ int main() {
         fprintf(stderr, "Another instance is already running.\n");
         return 0;
     }
-    ExecutableIOCBlocker exe_ioc_blocker(&exiting);
+
+    const std::string ioc_db_path = "/home/ubuntu/lib/vcs-ajiant-edr/configs/ioc_database";
+    IOCDatabase ioc_db(ioc_db_path);
+    // update_database(ioc_db);
+    // ioc_db.dump_database_info();
+    // if(ioc_db.delete_file_hash(calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main"))){
+    //     printf("deletet hash success!\n");
+    // }
+    ioc_db.add_file_hash(calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main"), IOCMeta());
+    ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     pthread_t network_thread_id;
     pthread_t self_defense_id;
     pthread_t ioc_block_id;
@@ -283,7 +324,7 @@ int main() {
     }
 
     printf("PID: %d, Name: %s [user space main.c] Watching for file deletes... Ctrl+C to stop.\n", pid, process_name);
-    
+
     if (pthread_create(&network_thread_id, NULL, socket_thread, NULL) != 0) {
         fprintf(stderr, "Failed to create socket thread.\n");
     }
@@ -293,9 +334,8 @@ int main() {
     if (pthread_create(&ioc_block_id, NULL, ioc_block_thread, rb_ioc_block) != 0) {
         fprintf(stderr, "Failed to create ioc_block thread.\n");
     }
-    exe_ioc_blocker.add_policy("/home/quang/myLib/tmp/test1");
     exe_ioc_blocker.start();
-
+    
     while (!exiting) {
         sleep(1);
     }

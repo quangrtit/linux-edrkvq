@@ -26,6 +26,8 @@
 #include <cstdlib>
 #include <chrono>
 #include <openssl/evp.h>
+#include <cstring>
+#include <vector>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 16
 #define MAX_PATH_LEN 128

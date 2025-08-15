@@ -41,3 +41,4 @@ cp SentinelEDR-1.0.0-linux-x86_64.deb /home/quang/myLib/vcs-ajiant-edr/test_envi
 
 
 sudo apt install libssl-dev
+sudo apt-get install liblmdb-dev

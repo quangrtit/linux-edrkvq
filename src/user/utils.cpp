@@ -143,3 +143,19 @@ std::string calculate_sha256_fast(const char* file_path) {
 
     return std::string(hex_output);
 }
+
+bool is_elf_fd(int fd) {
+    unsigned char magic[4];
+    if (pread(fd, magic, 4, 0) != 4) 
+        return false;
+    return magic[0] == 0x7F && magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F';
+}
+bool is_executable_fd(int fd) {
+    struct stat st;
+    if (fstat(fd, &st) != 0)
+        return false;
+    return (st.st_mode & S_IXUSR) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH);
+}
+// const char *get_ioc_db_path() {
+
+// }
