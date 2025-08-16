@@ -141,6 +141,12 @@ configure_file("${CMAKE_SOURCE_DIR}/install.sh"
 configure_file("${CMAKE_SOURCE_DIR}/uninstall.sh"
                "${CMAKE_BINARY_DIR}/uninstall.sh"
                COPYONLY)
+# test file IOC block exe
+configure_file("${CMAKE_SOURCE_DIR}/test_environment/tmp/main"
+               "${CMAKE_BINARY_DIR}/main_test_block_exe"
+               COPYONLY)
+file(COPY "${CMAKE_SOURCE_DIR}/configs/IOC_DB"
+     DESTINATION "${CMAKE_BINARY_DIR}")
 # --- CPack Configuration ---
 set_target_properties(${MAIN_EXECUTABLE_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

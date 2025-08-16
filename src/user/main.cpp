@@ -224,38 +224,6 @@ void* socket_thread(void* arg) {
     printf("[Server Thread] Server is shutting down.\n");
     return NULL;
 }
-
-// void test_db(IOCDatabase &db) {
-//     IOCMeta meta{
-//             static_cast<uint64_t>(time(nullptr)),
-//             static_cast<uint64_t>(time(nullptr)),
-//             "user_upload"
-//         };
-//     std::string hash_input = calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main");
-//     std::string ip_input = "192.168.1.100";
-//     // db.add_file_hash(hash_input, meta);
-//     // db.add_ip(ip_input, meta);
-//     IOCMeta result;
-//     if(db.get_file_hash(hash_input, result)) {
-
-//         printf("Found file hash:\n");
-//         printf("  first_seen: %ld\n", result.first_seen); 
-//         printf("  last_seen:  %ld\n", result.last_seen); 
-//         printf("  source:     %s\n", result.source.c_str()); 
-//     } else {
-//         printf("File hash not found\n");
-//     }
-
-//     if(db.get_ip("192.168.1.100", result)) {
-//         printf("Found IP:\n");
-//         printf("  first_seen: %ld\n", result.first_seen);
-//         printf("  last_seen: %ld\n", result.last_seen);
-//         printf("  source: %s\n", result.source.c_str());
-//     } else {
-//         printf("IP not found\n");
-//     }
-//     db.dump_database_info();
-// }
 int main() {
     // check singe instance 
     int lock_fd;
@@ -265,14 +233,12 @@ int main() {
         return 0;
     }
 
-    const std::string ioc_db_path = "/home/ubuntu/lib/vcs-ajiant-edr/configs/ioc_database";
-    IOCDatabase ioc_db(ioc_db_path);
-    // update_database(ioc_db);
+    IOCDatabase ioc_db(IOC_DB_PATH);
     // ioc_db.dump_database_info();
-    // if(ioc_db.delete_file_hash(calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main"))){
+    // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }
-    ioc_db.add_file_hash(calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main"), IOCMeta());
+    ioc_db.add_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE), IOCMeta());
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     pthread_t network_thread_id;
     pthread_t self_defense_id;

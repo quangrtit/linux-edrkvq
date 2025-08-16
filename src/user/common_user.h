@@ -41,6 +41,15 @@
 #define LOCK_PATH "/var/run/sentinel.lock"
 #define PORT 8080
 #define BUFFER_SIZE 1024
+
+#ifndef DEFAULT_POLICY_FILE_PATH
+#define DEFAULT_POLICY_FILE_PATH "/var/lib/SentinelEDR/self_defense_policy.json"
+#endif
+#define IOC_DB_PATH "IOC_DB" 
+#define IOC_HASH_FILE_PATH "IOC_DB/ioc_file_hash"
+#define IOC_IP_PATH "IOC_DB/ioc_ip"
+#define FILE_TEST_BLOCK_EXE "main_test_block_exe"
+
 enum log_level {
     INFO,
     WARNING,

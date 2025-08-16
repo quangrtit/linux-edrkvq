@@ -15,18 +15,6 @@ IOCMeta IOCMeta::deserialize(const std::string& str) {
     meta.source = str.substr(pos2 + 1);
     return meta;
 }
-// IOCDatabase::IOCDatabase(const std::string& path) {
-//     if(mdb_env_create(&env) != 0) throw std::runtime_error("Failed to create LMDB env");
-//     mdb_env_set_maxdbs(env, 10);
-//     if(mdb_env_open(env, path.c_str(), MDB_NOSUBDIR, 0664) != 0)
-//         throw std::runtime_error("Failed to open LMDB env");
-
-//     MDB_txn* txn;
-//     mdb_txn_begin(env, nullptr, 0, &txn);
-//     mdb_dbi_open(txn, "file_hash_map", MDB_CREATE, &file_hash_dbi);
-//     mdb_dbi_open(txn, "ip_map", MDB_CREATE, &ip_dbi);
-//     mdb_txn_commit(txn);
-// }
 
 IOCDatabase::IOCDatabase(const std::string& path) {
     struct stat st = {0};
@@ -222,21 +210,19 @@ void IOCDatabase::dump_database_info() {
 }
 
 void update_database(IOCDatabase& db) {
-    const std::string path_ioc_hash_file = "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_file_hash";
-    const std::string path_ioc_ip = "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_ip";
 
     IOCMeta meta{static_cast<uint64_t>(time(nullptr)),
                  static_cast<uint64_t>(time(nullptr)),
                  "user_upload"};
 
-    std::ifstream file_hash(path_ioc_hash_file);
+    std::ifstream file_hash(IOC_HASH_FILE_PATH);
     std::string line;
     std::vector<std::pair<std::string, IOCMeta>> batch;
-
+    int count_record = 0;
     while (std::getline(file_hash, line)) {
         if (line.empty()) continue;
         batch.emplace_back(line, meta);
-
+        ++count_record;
         if(batch.size() >= 1000) {  // batch 1000 key
             db.add_entries_batch(db.file_hash_dbi, batch);
             batch.clear();
@@ -245,7 +231,7 @@ void update_database(IOCDatabase& db) {
     if(!batch.empty()) db.add_entries_batch(db.file_hash_dbi, batch);
     file_hash.close();
 
-    std::ifstream file_ip(path_ioc_ip);
+    std::ifstream file_ip(IOC_IP_PATH);
     batch.clear();
     while (std::getline(file_ip, line)) {
         if(line.empty()) continue;
@@ -257,54 +243,5 @@ void update_database(IOCDatabase& db) {
     }
     if(!batch.empty()) db.add_entries_batch(db.ip_dbi, batch);
     file_ip.close();
-    // IOCMeta meta{
-    //     static_cast<uint64_t>(time(nullptr)),
-    //     static_cast<uint64_t>(time(nullptr)),
-    //     "user_upload"
-    // };
-
-    // // --- Load file hashes ---
-    // std::ifstream file_hash(path_ioc_hash_file);
-    // if (!file_hash.is_open()) {
-    //     std::cerr << "[ERROR] Cannot open file for ioc file hash: " << path_ioc_hash_file << "\n";
-    //     return;
-    // }
-
-    // std::string line;
-    // int count_check = 0;
-    // while (std::getline(file_hash, line)) {
-    //     if (line.empty()) continue;
-    //     std::istringstream iss(line);
-    //     std::string hash_input;
-    //     if (!(iss >> hash_input)) continue;
-
-    //     ++count_check;
-    //     // if (count_check > 100) break;
-
-    //     db.add_file_hash(hash_input, meta);
-    // }
-    // file_hash.close();
-    // std::cout << "total hash_file: " << count_check << std::endl;
-    // // --- Load IPs ---
-    // std::ifstream file_ip(path_ioc_ip);
-    // if (!file_ip.is_open()) {
-    //     std::cerr << "[ERROR] Cannot open file for ioc ip: " << path_ioc_ip << "\n";
-    //     return;
-    // }
-
-    // count_check = 0; 
-    // while (std::getline(file_ip, line)) {
-    //     if (line.empty()) continue;
-    //     std::istringstream iss(line);
-    //     std::string ip_input;
-    //     if (!(iss >> ip_input)) continue;
-
-    //     ++count_check;
-    //     // if (count_check > 100) break;
-
-    //     db.add_ip(ip_input, meta);
-    // }
-    // file_ip.close();
-    // std::cout << "total ip: " << count_check << std::endl;
-    // // db.dump_database_info();
+    printf("total recorn hash file: %d\n", count_record);
 }
