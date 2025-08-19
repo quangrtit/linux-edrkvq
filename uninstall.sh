@@ -16,7 +16,8 @@ echo "[*] Xóa file service nếu còn..."
 sudo rm -f /etc/systemd/system/SentinelEDR.service
 sudo rm -f /lib/systemd/system/SentinelEDR.service
 
-echo "[*] Xóa cấu hình nếu bạn muốn..."
+echo "[*] Xóa cấu hình..."
 sudo rm -rf /etc/SentinelEDR/
+sudo rm -rf /var/lib/SentinelEDR/
 
 echo "[+] Gỡ cài đặt hoàn tất!"

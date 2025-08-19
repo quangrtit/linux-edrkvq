@@ -32,8 +32,8 @@ bool ExecutableIOCBlocker::start() {
     if (fan_fd >= 0) return false; // already started
     fan_fd = fanotify_init(FAN_CLASS_CONTENT | FAN_NONBLOCK, O_RDONLY | O_LARGEFILE);
     if (fan_fd < 0) return false;
-
-    if (fanotify_mark(fan_fd, FAN_MARK_ADD | FAN_MARK_MOUNT, FAN_OPEN_EXEC_PERM, AT_FDCWD, "/") < 0) {
+    enumerate_mounts_and_mark();
+    if (fanotify_mark(fan_fd, FAN_MARK_ADD | FAN_MARK_MOUNT, FAN_OPEN_EXEC_PERM, AT_FDCWD, "/home") < 0) {
         close(fan_fd);
         fan_fd = -1;
         return false;
@@ -63,7 +63,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
         std::string hash_check = calculate_sha256_fast(real_path);   
         // check malicious
         IOCMeta result;
-        printf("start hash: %s......\n", real_path);
+        // printf("start hash: %s......\n", real_path);
         malicious = ioc_db.get_file_hash(hash_check, result); // memory load ????
         if(malicious) { // cache malicious
             auto end = std::chrono::high_resolution_clock::now();
@@ -74,8 +74,64 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    printf("Time to hash file %s : %.3f ms\n", real_path, elapsed.count());
+    // printf("Time to hash file %s : %.3f ms\n", real_path, elapsed.count());
     return malicious;
+}
+bool ExecutableIOCBlocker::add_mount(const std::string &path) {
+    if (fan_fd < 0) return false;
+    if (fanotify_mark(fan_fd,
+                        FAN_MARK_ADD | FAN_MARK_MOUNT,
+                        FAN_OPEN_EXEC_PERM,
+                        AT_FDCWD,
+                        path.c_str()) < 0) {
+        perror(("fanotify_mark add " + path).c_str());
+        return false;
+    }
+    std::cout << "[+] Add mount: " << path << "\n";
+    return true;
+}
+bool ExecutableIOCBlocker::remove_mount(const std::string &path) {
+    if (fan_fd < 0) return false;
+    if (fanotify_mark(fan_fd, FAN_MARK_REMOVE | FAN_MARK_MOUNT,
+                      FAN_OPEN_EXEC_PERM, AT_FDCWD, path.c_str()) < 0) {
+        perror("fanotify_mark remove");
+        return false;
+    }
+    std::cout << "[+] Remove mount: " << path << "\n";
+    return true;
+}
+void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
+    std::ifstream mounts("/proc/self/mountinfo");
+    if (!mounts.is_open()) {
+        perror("open /proc/self/mountinfo");
+        return;
+    }
+
+    std::string line;
+    while (std::getline(mounts, line)) {
+        std::istringstream iss(line);
+        std::string mount_id, parent_id, major_minor, root, mount_point;
+
+        if (!(iss >> mount_id >> parent_id >> major_minor >> root >> mount_point)) {
+            continue;
+        }
+
+        add_mount(mount_point);
+
+        int major = 0, minor = 0;
+        sscanf(major_minor.c_str(), "%d:%d", &major, &minor);
+        uint64_t dev = ((uint64_t)major << 32) | minor;
+
+        std::string token;
+        while (iss >> token && token != "-");
+
+        std::string fstype, devname;
+        if (!(iss >> fstype >> devname)) {
+            devname = "unknown";
+        }
+
+        mount_cache[dev] = {mount_point, devname};
+    }
 }
 // static bool is_system_critical_file(const char* path) {
 //     static const char* critical_paths[] = {
@@ -138,38 +194,38 @@ void ExecutableIOCBlocker::loop() {
                     real_path[r] = '\0';
                     
    
-                    if (strstr(real_path, "ld-linux") != NULL || 
-                        strstr(real_path, "ld.so") != NULL ||
-                        strcmp(real_path, "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2") == 0) {
+                    // if (strstr(real_path, "ld-linux") != NULL || 
+                    //     strstr(real_path, "ld.so") != NULL ||
+                    //     strcmp(real_path, "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2") == 0) {
                   
-                        write(fan_fd, &response, sizeof(response));
-                        close(metadata->fd);
-                        continue;
-                    }
+                    //     write(fan_fd, &response, sizeof(response));
+                    //     close(metadata->fd);
+                    //     continue;
+                    // }
                     
            
-                    if (strncmp(real_path, "/usr/lib/", 9) == 0 ||
-                        strncmp(real_path, "/lib/", 5) == 0 ||
-                        strncmp(real_path, "/lib64/", 7) == 0 ||
-                        strncmp(real_path, "/usr/libexec/", 13) == 0 ||
-                        strncmp(real_path, "/proc/", 6) == 0 ||
-                        strncmp(real_path, "/sys/", 5) == 0) {
+                    // if (strncmp(real_path, "/usr/lib/", 9) == 0 ||
+                    //     strncmp(real_path, "/lib/", 5) == 0 ||
+                    //     strncmp(real_path, "/lib64/", 7) == 0 ||
+                    //     strncmp(real_path, "/usr/libexec/", 13) == 0 ||
+                    //     strncmp(real_path, "/proc/", 6) == 0 ||
+                    //     strncmp(real_path, "/sys/", 5) == 0) {
               
-                        write(fan_fd, &response, sizeof(response));
-                        close(metadata->fd);
-                        continue;
-                    }
+                    //     write(fan_fd, &response, sizeof(response));
+                    //     close(metadata->fd);
+                    //     continue;
+                    // }
                     
-                    if (strcmp(real_path, "/bin/bash") == 0 ||
-                        strcmp(real_path, "/usr/bin/bash") == 0 ||
-                        strcmp(real_path, "/bin/sh") == 0 ||
-                        strcmp(real_path, "/usr/bin/sh") == 0 ||
-                        strcmp(real_path, "/bin/dash") == 0) {
+                    // if (strcmp(real_path, "/bin/bash") == 0 ||
+                    //     strcmp(real_path, "/usr/bin/bash") == 0 ||
+                    //     strcmp(real_path, "/bin/sh") == 0 ||
+                    //     strcmp(real_path, "/usr/bin/sh") == 0 ||
+                    //     strcmp(real_path, "/bin/dash") == 0) {
                      
-                        write(fan_fd, &response, sizeof(response));
-                        close(metadata->fd);
-                        continue;
-                    }
+                    //     write(fan_fd, &response, sizeof(response));
+                    //     close(metadata->fd);
+                    //     continue;
+                    // }
                     
                
                     // printf("/-----------------------/\n");

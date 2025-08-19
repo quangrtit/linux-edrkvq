@@ -176,7 +176,7 @@ int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
     // bpf_core_read_str(&filename, sizeof(filename), file->f_path.dentry->d_name.name);
     __u32 pid = bpf_get_current_pid_tgid() >> 32;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    bpf_printk("this is pid: %d\n", pid);
+    // bpf_printk("this is pid: %d\n", pid);
     if (flag && *flag == 1) {
         return 0;  
     }
@@ -390,7 +390,7 @@ int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int 
     // if (flag && *flag == 1) {
     //     return 0;  
     // }
-    bpf_printk("have all pid %d %d\n", pid, tgid);
+    // bpf_printk("have all pid %d %d\n", pid, tgid);
     struct process_policy_value *policy = lookup_process_policy(pid);
     if (!policy) {
         policy = lookup_process_policy(tgid);

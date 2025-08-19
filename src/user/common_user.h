@@ -29,7 +29,7 @@
 #include <cstring>
 #include <vector>
 #define LOG_MSG_MAX_LEN 128
-#define TASK_COMM_LEN 16
+#define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128
 #define MAX_POLICY_ENTRIES 64
 #define NAME_MAX 255
@@ -107,6 +107,7 @@ enum ioc_event_type {
     IOC_EVT_EXEC_FILE = 1,   // Execute file
     IOC_EVT_CONNECT_IP,      // IP Connection
     IOC_EVT_CMD_CONTROL,     // Receive control command
+    IOC_EVT_MOUNT_EVENT,
 };
 
 // Payload for IOC_EXEC_FILE
@@ -114,7 +115,17 @@ struct exec_payload {
     char file_path[MAX_PATH_LEN];  
     __u64 inode_id;       
 };
-
+// Event Mountpoint 
+enum mount_type {
+    MOUNT_ADD,
+    MOUNT_REMOVE
+};
+struct mount_payload {
+    enum mount_type action;                  // MOUNT_ADD, MOUNT_REMOVE
+    char dev_name[MAX_PATH_LEN];           // device (/dev/sda1)
+    char fs_type[TASK_COMM_LEN];            // ext4, vfat...
+    char mnt_point[MAX_PATH_LEN];         // mountpoint path
+};
 // Payload for IOC_CONNECT_IP
 struct net_payload {
     __u32 saddr;          
@@ -140,23 +151,17 @@ struct ioc_event {
     enum ioc_event_type type; // Blocked IOC Type
 
     union {
-        struct {
-            char file_path[MAX_PATH_LEN]; // Executable file path
-            __u64 inode_id;      // file inode (dev<<32 | ino)
-        } exec;
-
-        struct {
-            __u32 saddr;         // Source IP (IPv4)
-            __u32 daddr;         // Destination IP (IPv4)
-            __u16 sport;         // Source port
-            __u16 dport;         // Destination Port
-        } net;
-
-        struct {
-            char cmd[NAME_MAX];       // C2 command or data
-        } cmdctl;
-
+        struct exec_payload exec;
+        struct mount_payload mnt;
+        
+        struct net_payload net;
+        struct cmd_payload cmd;
     };
 };
 
+
+struct MountInfo {
+    std::string mount_point; // vd: "/home"
+    std::string dev_name;    // vd: "/dev/sda1"
+};
 #endif // __COMMON_USER_H

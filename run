@@ -42,3 +42,15 @@ cp SentinelEDR-1.0.0-linux-x86_64.deb /home/quang/myLib/vcs-ajiant-edr/test_envi
 git clone --recurse-submodules git@github.com:quangrtit/vcs-ajiant-edr.git
 sudo apt install libssl-dev
 sudo apt-get install liblmdb-dev
+
+
+dd if=/dev/zero of=test_drive.img bs=1M count=100
+mkfs.ext4 test_drive.img
+sudo mkdir /mnt/test_mount
+sudo mount test_drive.img /mnt/test_mount
+sudo bash -c 'echo "#!/bin/bash" > /mnt/test_mount/test_script.sh'
+sudo chmod +x /mnt/test_mount/test_script.sh
+sudo /mnt/test_mount/test_script.sh
+sudo umount /mnt/test_mount
+sudo rmdir /mnt/test_mount
+sudo rm test_drive.img

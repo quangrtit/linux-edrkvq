@@ -1,7 +1,7 @@
 {
   "file_protection_rules": [
     {
-      "path": "/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs11.txt",
+      "path": "/home/ubuntu/lib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs11.txt",
       "inode": -1,
       "inode_symlink": -1,
       "block_read": false,

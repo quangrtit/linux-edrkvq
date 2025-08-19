@@ -89,7 +89,7 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
     if (evt->type == IOC_EVT_EXEC_FILE) type_str = "EXEC";
     else if (evt->type == IOC_EVT_CONNECT_IP) type_str = "NET";
     else if (evt->type == IOC_EVT_CMD_CONTROL) type_str = "CMD";
-
+    else if (evt->type == IOC_EVT_MOUNT_EVENT) type_str = "MOUNT_EVENT";
     printf("[%s] [%-5s] PID:%d TGID:%d UID:%d GID:%d COMM:'%s' -> ",
            timestamp_str, type_str,
            evt->pid, evt->tgid, evt->uid, evt->gid, evt->type == IOC_EVT_EXEC_FILE ? evt->exec.file_path : "");
@@ -105,7 +105,23 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
                    inet_ntoa(*(struct in_addr*)&evt->net.daddr), ntohs(evt->net.dport));
             break;
         case IOC_EVT_CMD_CONTROL:
-            printf("Command='%s'\n", evt->cmdctl.cmd);
+            printf("Command='%s'\n", evt->cmd.cmd);
+            break;
+        case IOC_EVT_MOUNT_EVENT: 
+            // struct stat st;
+            // if (stat(evt->mnt.mnt_point, &st) == 0) {
+            //     uint64_t dev = st.st_dev; // đã chứa major/minor
+            //     if (evt->mnt.action == MOUNT_ADD) {
+            //         mount_cache[dev] = {evt->mnt.mnt_point, evt->mnt.dev_name, evt->mnt.fs_type};
+            //     } else if (evt->mnt.action == MOUNT_REMOVE) {
+            //         mount_cache.erase(dev);
+            //     }
+            // }
+            printf("[MOUNT_EVENT] action=%s dev=%s fs=%s mnt=%s\n",
+                evt->mnt.action == MOUNT_ADD ? "MOUNT_ADD" : "MOUNT_REMOVE",
+                evt->mnt.dev_name,
+                evt->mnt.fs_type,
+                evt->mnt.mnt_point);
             break;
         default:
             printf("Unknown IOC type\n");
@@ -234,6 +250,7 @@ int main() {
     }
 
     IOCDatabase ioc_db(IOC_DB_PATH);
+    // update_database(ioc_db);
     // ioc_db.dump_database_info();
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
