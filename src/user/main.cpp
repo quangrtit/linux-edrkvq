@@ -100,9 +100,21 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
                    evt->exec.file_path, (unsigned long long)evt->exec.inode_id);
             break;
         case IOC_EVT_CONNECT_IP:
-            printf("Connect %s:%u -> %s:%u\n",
-                   inet_ntoa(*(struct in_addr*)&evt->net.saddr), ntohs(evt->net.sport),
-                   inet_ntoa(*(struct in_addr*)&evt->net.daddr), ntohs(evt->net.dport));
+            char ip_str[INET6_ADDRSTRLEN];
+            if (evt->net.family == AF_INET) {
+                // IPv4
+                struct in_addr addr4;
+                addr4.s_addr = evt->net.daddr_v4;
+                inet_ntop(AF_INET, &addr4, ip_str, sizeof(ip_str));
+            } else if (evt->net.family == AF_INET6) {
+                // IPv6
+                inet_ntop(AF_INET6, evt->net.daddr_v6, ip_str, sizeof(ip_str));
+            } else {
+                snprintf(ip_str, sizeof(ip_str), "UnknownFamily");
+            }
+
+            printf("[CONNECT_EVENT] pid=%u protocol=%u -> %s:%u\n",
+                evt->net.pid, evt->net.protocol, ip_str, ntohs(evt->net.dport));
             break;
         case IOC_EVT_CMD_CONTROL:
             printf("Command='%s'\n", evt->cmd.cmd);

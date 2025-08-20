@@ -37,6 +37,7 @@
 
 #define EPERM 1
 #define AF_INET 2
+#define AF_INET6 23 
 #define ECONNREFUSED 111
 
 enum log_level {
@@ -109,10 +110,13 @@ struct mount_payload {
 };
 // Payload for IOC_CONNECT_IP
 struct net_payload {
-    __u32 saddr;          
-    __u32 daddr;          
-    __u16 sport;         
-    __u16 dport;          
+    __u8  family;       // AF_INET / AF_INET6
+    __u32 daddr_v4;     // IPv4 dest
+    __u8  daddr_v6[16]; // IPv6 dest
+    __u16 dport;        // dest port
+
+    __u32 pid;          // process created connection
+    __u32 protocol;     // TCP/UDP
 };
 
 // Payload for IOC_CMD_CONTROL
