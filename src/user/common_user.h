@@ -161,7 +161,15 @@ struct ioc_event {
 
 
 struct MountInfo {
-    std::string mount_point; // vd: "/home"
-    std::string dev_name;    // vd: "/dev/sda1"
+    std::string dev_name;          
+    std::string fs_type; 
+    MountInfo(){}
+    MountInfo(std::string dev_name_in, std::string fs_type_in) {dev_name = dev_name_in; fs_type = fs_type_in;}
+};
+
+class ExecutableIOCBlocker;
+
+struct CallbackContext {
+    ExecutableIOCBlocker *exe_ioc_blocker;
 };
 #endif // __COMMON_USER_H

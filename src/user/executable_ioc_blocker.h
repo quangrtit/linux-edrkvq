@@ -17,7 +17,7 @@ public:
 
     bool check_exe_malicious(const char* real_path, IOCDatabase& ioc_db);
     void enumerate_mounts_and_mark();
-    bool add_mount(const std::string &path);
+    bool add_mount(const std::string &path, const MountInfo& mount_info);
     bool remove_mount(const std::string &path);
 private:
     void loop();    
@@ -29,7 +29,7 @@ private:
     std::thread worker_thread;
 
     IOCDatabase &ioc_db;
-    std::unordered_map<uint64_t, MountInfo> mount_cache;
+    std::unordered_map<std::string, MountInfo> mount_cache;
 };
 
 #endif // __EXECUTABLE_IOC_BLOCKER_H

@@ -77,7 +77,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     // printf("Time to hash file %s : %.3f ms\n", real_path, elapsed.count());
     return malicious;
 }
-bool ExecutableIOCBlocker::add_mount(const std::string &path) {
+bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& mount_info) {
     if (fan_fd < 0) return false;
     if (fanotify_mark(fan_fd,
                         FAN_MARK_ADD | FAN_MARK_MOUNT,
@@ -87,11 +87,21 @@ bool ExecutableIOCBlocker::add_mount(const std::string &path) {
         perror(("fanotify_mark add " + path).c_str());
         return false;
     }
+    mount_cache[path] = mount_info;
     std::cout << "[+] Add mount: " << path << "\n";
     return true;
 }
 bool ExecutableIOCBlocker::remove_mount(const std::string &path) {
     if (fan_fd < 0) return false;
+
+    auto it = mount_cache.find(path);
+    if(it != mount_cache.end()) {
+        mount_cache.erase(it);
+    }
+    else {
+        return false;
+    }
+
     if (fanotify_mark(fan_fd, FAN_MARK_REMOVE | FAN_MARK_MOUNT,
                       FAN_OPEN_EXEC_PERM, AT_FDCWD, path.c_str()) < 0) {
         perror("fanotify_mark remove");
@@ -111,16 +121,14 @@ void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
     while (std::getline(mounts, line)) {
         std::istringstream iss(line);
         std::string mount_id, parent_id, major_minor, root, mount_point;
-
+        MountInfo mount_info = {};
         if (!(iss >> mount_id >> parent_id >> major_minor >> root >> mount_point)) {
             continue;
         }
 
-        add_mount(mount_point);
-
-        int major = 0, minor = 0;
-        sscanf(major_minor.c_str(), "%d:%d", &major, &minor);
-        uint64_t dev = ((uint64_t)major << 32) | minor;
+        // int major = 0, minor = 0;
+        // sscanf(major_minor.c_str(), "%d:%d", &major, &minor);
+        // uint64_t dev = ((uint64_t)major << 32) | minor;
 
         std::string token;
         while (iss >> token && token != "-");
@@ -129,9 +137,13 @@ void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
         if (!(iss >> fstype >> devname)) {
             devname = "unknown";
         }
-
-        mount_cache[dev] = {mount_point, devname};
+        mount_info.dev_name = devname;
+        mount_info.fs_type = fstype;
+        add_mount(mount_point, mount_info);
     }
+    // for(auto path: mount_cache) {
+    //     std::cout << "mountpoint: " << path.first << std::endl;
+    // }
 }
 // static bool is_system_critical_file(const char* path) {
 //     static const char* critical_paths[] = {

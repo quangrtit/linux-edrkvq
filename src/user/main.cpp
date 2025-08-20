@@ -73,7 +73,7 @@ void *self_defense_thread(void *arg) {
 // ioc block
 static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
     const struct ioc_event *evt = (const struct ioc_event *)data;
-
+    CallbackContext *rb_ctx = (CallbackContext*)ctx;
     // Convert timestamp
     struct timespec ts;
     char timestamp_str[32];
@@ -93,7 +93,7 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
     printf("[%s] [%-5s] PID:%d TGID:%d UID:%d GID:%d COMM:'%s' -> ",
            timestamp_str, type_str,
            evt->pid, evt->tgid, evt->uid, evt->gid, evt->type == IOC_EVT_EXEC_FILE ? evt->exec.file_path : "");
-
+    MountInfo mount_info;
     switch (evt->type) {
         case IOC_EVT_EXEC_FILE:
             printf("File='%s' inode=0x%llx\n",
@@ -108,20 +108,17 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
             printf("Command='%s'\n", evt->cmd.cmd);
             break;
         case IOC_EVT_MOUNT_EVENT: 
-            // struct stat st;
-            // if (stat(evt->mnt.mnt_point, &st) == 0) {
-            //     uint64_t dev = st.st_dev; // đã chứa major/minor
-            //     if (evt->mnt.action == MOUNT_ADD) {
-            //         mount_cache[dev] = {evt->mnt.mnt_point, evt->mnt.dev_name, evt->mnt.fs_type};
-            //     } else if (evt->mnt.action == MOUNT_REMOVE) {
-            //         mount_cache.erase(dev);
-            //     }
-            // }
             printf("[MOUNT_EVENT] action=%s dev=%s fs=%s mnt=%s\n",
                 evt->mnt.action == MOUNT_ADD ? "MOUNT_ADD" : "MOUNT_REMOVE",
                 evt->mnt.dev_name,
                 evt->mnt.fs_type,
                 evt->mnt.mnt_point);
+            if (evt->mnt.action == MOUNT_ADD) {
+                rb_ctx->exe_ioc_blocker->add_mount(evt->mnt.mnt_point, mount_info);
+            }
+            else {
+                rb_ctx->exe_ioc_blocker->remove_mount(evt->mnt.mnt_point);
+            }
             break;
         default:
             printf("Unknown IOC type\n");
@@ -257,6 +254,8 @@ int main() {
     // }
     ioc_db.add_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE), IOCMeta());
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
+    CallbackContext rb_ctx;
+    rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;
     pthread_t network_thread_id;
     pthread_t self_defense_id;
     pthread_t ioc_block_id;
@@ -300,7 +299,7 @@ int main() {
         fprintf(stderr, "[user space main.c] Failed to create ring buffer\n");
         goto cleanup;
     }
-    rb_ioc_block = ring_buffer__new(bpf_map__fd(skel_ioc_block->maps.ioc_events), handle_ioc_event, NULL, NULL);
+    rb_ioc_block = ring_buffer__new(bpf_map__fd(skel_ioc_block->maps.ioc_events), handle_ioc_event, &rb_ctx, NULL);
     if (!rb_ioc_block) {
         fprintf(stderr, "[user space main.c] Failed to create ring buffer\n");
         goto cleanup;

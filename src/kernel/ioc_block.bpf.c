@@ -125,47 +125,47 @@ int BPF_PROG(restrict_connect, struct socket *sock, struct sockaddr *address, in
 //     return 0;
 // }
 
-SEC("lsm/sb_unmount")
-int BPF_PROG(on_sb_unmount,  struct vfsmount *mnt, int flags) {
-    struct mount_payload evt = {};
-
-    evt.action = MOUNT_REMOVE;
-    bpf_probe_read_kernel_str(evt.fs_type, sizeof(evt.fs_type),
-                              BPF_CORE_READ(mnt, mnt_sb, s_type, name));
-
-    send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
-    
-    return 0;
-}
-// SEC("tracepoint/syscalls/sys_enter_mount")
-// int on_sys_enter_mount(struct trace_event_raw_sys_enter *ctx)
-// {
-//     struct mount_payload evt;
-//     __u64 dev_name_ptr = ctx->args[0]; // const char *dev_name
-//     __u64 dir_name_ptr = ctx->args[1]; // const char *dir_name
-//     __u64 type_ptr     = ctx->args[2]; // const char *type
-
-//     evt.action = MOUNT_ADD;
-//     bpf_probe_read_user_str(evt.dev_name, sizeof(evt.dev_name), (void *)dev_name_ptr);
-//     bpf_probe_read_user_str(evt.fs_type,  sizeof(evt.fs_type),  (void *)type_ptr);
-//     bpf_probe_read_user_str(evt.mnt_point,sizeof(evt.mnt_point),(void *)dir_name_ptr);
-
-//     bpf_printk("this is eBPF: %s\n", evt.mnt_point);
-//     send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
-//     return 0;
-// }
-// SEC("tracepoint/syscalls/sys_enter_umount")
-// int on_sys_enter_umount(struct trace_event_raw_sys_enter *ctx)
-// {
-//     struct mount_payload evt;
-
-//     __u64 dir_name_ptr = ctx->args[0]; 
+// SEC("lsm/sb_unmount")
+// int BPF_PROG(on_sb_unmount,  struct vfsmount *mnt, int flags) {
+//     struct mount_payload evt = {};
 
 //     evt.action = MOUNT_REMOVE;
+//     bpf_probe_read_kernel_str(evt.fs_type, sizeof(evt.fs_type),
+//                               BPF_CORE_READ(mnt, mnt_sb, s_type, name));
 
-//     bpf_probe_read_user_str(evt.mnt_point,sizeof(evt.mnt_point),(void *)dir_name_ptr);
-//     bpf_printk("that are eBPF: %s\n", evt.mnt_point);
 //     send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
-
+    
 //     return 0;
 // }
+SEC("tracepoint/syscalls/sys_enter_mount")
+int on_sys_enter_mount(struct trace_event_raw_sys_enter *ctx)
+{
+    struct mount_payload evt;
+    __u64 dev_name_ptr = ctx->args[0]; // const char *dev_name
+    __u64 dir_name_ptr = ctx->args[1]; // const char *dir_name
+    __u64 type_ptr     = ctx->args[2]; // const char *type
+
+    evt.action = MOUNT_ADD;
+    bpf_probe_read_user_str(evt.dev_name, sizeof(evt.dev_name), (void *)dev_name_ptr);
+    bpf_probe_read_user_str(evt.fs_type,  sizeof(evt.fs_type),  (void *)type_ptr);
+    bpf_probe_read_user_str(evt.mnt_point,sizeof(evt.mnt_point),(void *)dir_name_ptr);
+
+    bpf_printk("this is eBPF: %s\n", evt.mnt_point);
+    send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
+    return 0;
+}
+SEC("tracepoint/syscalls/sys_enter_umount")
+int on_sys_enter_umount(struct trace_event_raw_sys_enter *ctx)
+{
+    struct mount_payload evt;
+
+    __u64 dir_name_ptr = ctx->args[0]; 
+
+    evt.action = MOUNT_REMOVE;
+
+    bpf_probe_read_user_str(evt.mnt_point,sizeof(evt.mnt_point),(void *)dir_name_ptr);
+    bpf_printk("that are eBPF: %s\n", evt.mnt_point);
+    send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
+
+    return 0;
+}
