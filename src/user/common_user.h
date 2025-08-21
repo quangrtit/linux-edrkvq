@@ -28,6 +28,7 @@
 #include <openssl/evp.h>
 #include <cstring>
 #include <vector>
+#include <sys/socket.h>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128
@@ -49,6 +50,7 @@
 #define IOC_HASH_FILE_PATH "IOC_DB/ioc_file_hash"
 #define IOC_IP_PATH "IOC_DB/ioc_ip"
 #define FILE_TEST_BLOCK_EXE "main_test_block_exe"
+
 
 enum log_level {
     INFO,
@@ -127,13 +129,23 @@ struct mount_payload {
     char mnt_point[MAX_PATH_LEN];         // mountpoint path
 };
 // Payload for IOC_CONNECT_IP
+struct ip_key {
+    __u8 family;       // AF_INET / AF_INET6
+    union {
+        __u32  ipv4;
+        __u8   ipv6[16];
+    };
+};
+enum ip_status {
+    ALLOW = 0,
+    DENY = 1
+};
 struct net_payload {
+    enum ip_status status;
     __u8  family;       // AF_INET / AF_INET6
     __u32 daddr_v4;     // IPv4 dest
     __u8  daddr_v6[16]; // IPv6 dest
     __u16 dport;        // dest port
-
-    __u32 pid;          // process created connection
     __u32 protocol;     // TCP/UDP
 };
 

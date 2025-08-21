@@ -37,8 +37,10 @@
 
 #define EPERM 1
 #define AF_INET 2
-#define AF_INET6 23 
+#define AF_INET6 10
 #define ECONNREFUSED 111
+#define ETH_P_IP    0x0800  /* IPv4 */
+#define ETH_P_IPV6  0x86DD  /* IPv6 */
 
 enum log_level {
     INFO,
@@ -109,13 +111,23 @@ struct mount_payload {
     char mnt_point[MAX_PATH_LEN];         // mountpoint path
 };
 // Payload for IOC_CONNECT_IP
+struct ip_key {
+    __u8 family;       // AF_INET / AF_INET6
+    union {
+        __u32  ipv4;
+        __u8   ipv6[16];
+    };
+};
+enum ip_status {
+    ALLOW = 0,
+    DENY = 1
+};
 struct net_payload {
+    enum ip_status status;
     __u8  family;       // AF_INET / AF_INET6
     __u32 daddr_v4;     // IPv4 dest
     __u8  daddr_v6[16]; // IPv6 dest
     __u16 dport;        // dest port
-
-    __u32 pid;          // process created connection
     __u32 protocol;     // TCP/UDP
 };
 

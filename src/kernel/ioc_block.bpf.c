@@ -25,6 +25,13 @@ struct {
     __type(value, __u8);   // flag (1 = blocked)
 } blocked_ips SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, struct ip_key);
+    __type(value, struct net_payload);
+    __uint(max_entries, 256);
+} block_list_ip SEC(".maps");
+
 // static function
 static __always_inline void send_ioc_event(enum ioc_event_type type, void *data) {
     struct ioc_event *evt;
@@ -37,13 +44,13 @@ static __always_inline void send_ioc_event(enum ioc_event_type type, void *data)
     __builtin_memset(evt, 0, sizeof(*evt));
     evt->timestamp_ns = bpf_ktime_get_ns();
 
-    __u64 pid_tgid = bpf_get_current_pid_tgid();
-    evt->pid  = pid_tgid & 0xFFFFFFFF;
-    evt->tgid = pid_tgid >> 32;
+    // __u64 pid_tgid = bpf_get_current_pid_tgid();
+    // evt->pid  = pid_tgid & 0xFFFFFFFF;
+    // evt->tgid = pid_tgid >> 32;
 
-    __u64 uid_gid = bpf_get_current_uid_gid();
-    evt->uid = uid_gid & 0xFFFFFFFF;
-    evt->gid = uid_gid >> 32;
+    // __u64 uid_gid = bpf_get_current_uid_gid();
+    // evt->uid = uid_gid & 0xFFFFFFFF;
+    // evt->gid = uid_gid >> 32;
 
     evt->type = type;
 
@@ -62,9 +69,10 @@ static __always_inline void send_ioc_event(enum ioc_event_type type, void *data)
             __builtin_memset(evt->net.daddr_v6, 0, sizeof(evt->net.daddr_v6));
         }
         evt->net.dport    = p->dport;
-        evt->net.pid      = p->pid;
         evt->net.protocol = p->protocol;
-        // bpf_printk("[kernel] ip: %d and port: %d", evt->net.saddr, evt->net.sport);
+        // if(p->family == AF_INET6) {
+        //     bpf_printk("1234567834567 IPV6\n");
+        // }
     } else if (type == IOC_EVT_CMD_CONTROL) {
         const struct cmd_payload *p = data;
         bpf_probe_read_kernel_str(evt->cmd.cmd, sizeof(evt->cmd.cmd), p->cmd);
@@ -81,119 +89,149 @@ static __always_inline void send_ioc_event(enum ioc_event_type type, void *data)
     bpf_ringbuf_submit(evt, 0);
 }
 
-// SEC("lsm/socket_connect")
-// int BPF_PROG(restrict_connect, struct socket *sock, struct sockaddr *address, int addrlen, int ret)
-// {
-//     // Satisfying "cannot override a denial" rule
-//     if (ret != 0)
-//     {
-//         return ret;
-//     }
-//     int return_value = 0;
-
-//     struct net_payload evt = {};
-//     evt.family = address->sa_family;
-//     evt.pid = bpf_get_current_pid_tgid() >> 32;
-
-//     if (address->sa_family == AF_INET) {
-//         struct sockaddr_in *addr4 = (struct sockaddr_in *)address;
-//         evt.daddr_v4 = addr4->sin_addr.s_addr;
-//         evt.dport    = addr4->sin_port;
-//     }
-//     else if (address->sa_family == AF_INET6) {
-//         struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)address;
-//         bpf_probe_read_kernel(&evt.daddr_v6, sizeof(evt.daddr_v6), &addr6->sin6_addr);
-//         evt.dport    = addr6->sin6_port;
-//     }
-//     else {
-//         return 0;
-//     }
-//     send_ioc_event(IOC_EVT_CONNECT_IP, &evt);
-
-//     // example prevention IPV4
-//     if (evt.daddr_v4 == blockme) {
-//         return -EPERM;
-//     }
-
-//     return return_value;
-// }
-
-SEC("lsm/socket_accept")
-int BPF_PROG(restrict_accept, struct socket *sock, struct socket *newsock)
+static __always_inline int parse_l3l4(
+    struct xdp_md *ctx,
+    struct ip_key *key, struct net_payload *np)
 {
-    bpf_printk("fuck connection\n");
-    struct sock *sk = NULL;
-    bpf_core_read(&sk, sizeof(sk), &newsock->sk);
-    if (!sk)
-        return 0;
+    void *data_end = (void *)(long)ctx->data_end;
+    void *data     = (void *)(long)ctx->data;
+    struct ethhdr *eth = data;
 
-    struct net_payload evt = {};
-    __u16 family = 0, proto = 0;
+    if ((void *)(eth + 1) > data_end) return 0;
 
-    // family & protocol
-    bpf_core_read(&family, sizeof(family), &sk->__sk_common.skc_family);
-    evt.family = (__u8)family;
-    bpf_core_read(&proto, sizeof(proto), &sk->sk_protocol);
-    evt.protocol = proto;
+    __u16 h_proto = bpf_ntohs(eth->h_proto);
 
-    evt.pid = (__u32)(bpf_get_current_pid_tgid() >> 32);
-    if (family == AF_INET) {
-        __u32 daddr = 0;
-        __be16 dport = 0;
-        // remote (client)
-        bpf_core_read(&daddr, sizeof(daddr), &sk->__sk_common.skc_daddr);
-        bpf_core_read(&dport, sizeof(dport), &sk->__sk_common.skc_dport);
+    // IPv4
+    if (h_proto == ETH_P_IP) {
+        struct iphdr *ip4 = (void *)(eth + 1);
+        if ((void *)(ip4 + 1) > data_end) return 0;
 
-        evt.daddr_v4 = daddr;   // network order
-        evt.dport    = dport;   // network order
+        key->family   = AF_INET;
+        key->ipv4     = ip4->daddr;          // BE
+        np->family    = AF_INET;
+        np->daddr_v4  = ip4->daddr;          // BE
+        np->protocol  = ip4->protocol;
 
-    } else if (family == AF_INET6) {
-        __be16 dport6 = 0;
-        struct in6_addr v6 = {};
-        bpf_core_read(&v6, sizeof(v6), &sk->__sk_common.skc_v6_daddr);
-        bpf_core_read(&dport6, sizeof(dport6), &sk->__sk_common.skc_dport);
+        // L4 (TCP/UDP)
+        __u8 ihl = ip4->ihl * 4;
+        void *l4 = (void *)ip4 + ihl;
+        if (l4 > data_end) return 0;
 
-        __builtin_memcpy(evt.daddr_v6, &v6, sizeof(evt.daddr_v6));
-        evt.dport = dport6;    
-    } else {
-        return 0;
+        if (ip4->protocol == IPPROTO_TCP) {
+            struct tcphdr *th = l4;
+            if ((void *)(th + 1) > data_end) return 0;
+            np->dport = th->dest;            // BE
+        } else if (ip4->protocol == IPPROTO_UDP) {
+            struct udphdr *uh = l4;
+            if ((void *)(uh + 1) > data_end) return 0;
+            np->dport = uh->dest;            // BE
+        } else {
+            np->dport = 0;                   // not TCP/UDP
+        }
+        return 1;
     }
-    bpf_printk("error connection\n");
-    send_ioc_event(IOC_EVT_CONNECT_IP, &evt);
 
+    // IPv6
+    if (h_proto == ETH_P_IPV6) {
+        struct ipv6hdr *ip6 = (void *)(eth + 1);
+        if ((void *)(ip6 + 1) > data_end) return 0;
+
+        key->family = AF_INET6;
+        __builtin_memcpy(key->ipv6, &ip6->daddr, 16);
+        np->family = AF_INET6;
+        __builtin_memcpy(np->daddr_v6, &ip6->daddr, 16);
+        np->protocol = ip6->nexthdr;
+
+        void *l4 = (void *)(ip6 + 1);
+        if (l4 > data_end) return 0;
+
+        if (ip6->nexthdr == IPPROTO_TCP) {
+            struct tcphdr *th = l4;
+            if ((void *)(th + 1) > data_end) return 0;
+            np->dport = th->dest;            // BE
+        } else if (ip6->nexthdr == IPPROTO_UDP) {
+            struct udphdr *uh = l4;
+            if ((void *)(uh + 1) > data_end) return 0;
+            np->dport = uh->dest;            // BE
+        } else {
+            np->dport = 0;
+        }
+        return 1;
+    }
 
     return 0; 
 }
-// SEC("lsm/sb_mount") 
-// int BPF_PROG(on_sb_mount, const char *dev_name, struct path *path,
-//              const char *type, unsigned long flags, void *data)
+SEC("lsm/socket_connect")
+int BPF_PROG(restrict_connect, struct socket *sock, struct sockaddr *address, int addrlen, int ret)
+{
+    // Satisfying "cannot override a denial" rule
+    if (ret != 0)
+    {
+        return ret;
+    }
+    struct sock *sk = sock->sk;
+    if (!sk) {
+        return 0;
+    }
+    int return_value = 0;
+    struct ip_key key = {};
+    struct net_payload evt = {};
+    evt.family = address->sa_family;
+    evt.status = ALLOW;
+    bpf_probe_read_kernel(&evt.protocol, sizeof(sk->sk_protocol), &sk->sk_protocol);
+
+    key.family = address->sa_family;
+    if (address->sa_family == AF_INET) {
+        struct sockaddr_in *addr4 = (struct sockaddr_in *)address;
+        evt.daddr_v4 = addr4->sin_addr.s_addr;
+        evt.dport    = addr4->sin_port;
+
+        key.ipv4 = evt.daddr_v4;
+    }
+    else if (address->sa_family == AF_INET6) {
+        struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)address;
+        bpf_probe_read_kernel(&evt.daddr_v6, sizeof(evt.daddr_v6), &addr6->sin6_addr);
+        evt.dport    = addr6->sin6_port;
+
+        bpf_probe_read_kernel(&key.ipv6, sizeof(key.ipv6), &addr6->sin6_addr);
+    }
+    else {
+        return 0;
+    }
+    send_ioc_event(IOC_EVT_CONNECT_IP, &evt);
+
+    // example prevention IPV4
+    // if (evt.daddr_v4 == blockme) {
+    //     return -EPERM;
+    // }
+
+    return return_value;
+}
+
+static __always_inline void printk_ipv4_be(__u32 be_ip)
+{
+    __u32 h = bpf_ntohl(be_ip);
+    bpf_printk("IPv4 %u.%u.%u.%u",
+        (h >> 24) & 0xFF, (h >> 16) & 0xFF, (h >> 8) & 0xFF, h & 0xFF);
+}
+// SEC("xdp")
+// int xdp_pass(struct xdp_md *ctx)
 // {
-//     struct mount_payload evt = {};
-
-//     evt.action = MOUNT_ADD;
-
-//     bpf_probe_read_kernel_str(evt.dev_name, sizeof(evt.dev_name), dev_name);
-
-//     bpf_probe_read_kernel_str(evt.fs_type, sizeof(evt.fs_type), type);
-
-//     long len = bpf_d_path(path, evt.mnt_point, sizeof(evt.mnt_point));
-
-//     send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
-//     return 0;
+//     struct ip_key key = {};
+//     struct net_payload np = {};
+//     np.status = ALLOW;
+//     if (!parse_l3l4(ctx, &key, &np)) {
+//         return XDP_PASS;
+//     }
+//     if (np.family == AF_INET) {
+//         send_ioc_event(IOC_EVT_CONNECT_IP, &np);
+//     } 
+//     else if (np.family == AF_INET6) {
+//         send_ioc_event(IOC_EVT_CONNECT_IP, &np);
+//     }
+//     return XDP_PASS;
 // }
 
-// SEC("lsm/sb_unmount")
-// int BPF_PROG(on_sb_unmount,  struct vfsmount *mnt, int flags) {
-//     struct mount_payload evt = {};
-
-//     evt.action = MOUNT_REMOVE;
-//     bpf_probe_read_kernel_str(evt.fs_type, sizeof(evt.fs_type),
-//                               BPF_CORE_READ(mnt, mnt_sb, s_type, name));
-
-//     send_ioc_event(IOC_EVT_MOUNT_EVENT, &evt);
-    
-//     return 0;
-// }
 SEC("tracepoint/syscalls/sys_enter_mount")
 int on_sys_enter_mount(struct trace_event_raw_sys_enter *ctx)
 {

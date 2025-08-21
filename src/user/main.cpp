@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <net/if.h>
 
 #include "common_user.h"
 
@@ -29,7 +30,7 @@ extern "C" {
 
 static volatile sig_atomic_t exiting = 0;
 static volatile int exit_code = 1;
-
+static int ifindex;
 // self defense 
 static int handle_sd_event(void *ctx, void *data, size_t data_sz) {
     const struct log_debug *log = static_cast<const struct log_debug*>(data);
@@ -90,9 +91,9 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
     else if (evt->type == IOC_EVT_CONNECT_IP) type_str = "NET";
     else if (evt->type == IOC_EVT_CMD_CONTROL) type_str = "CMD";
     else if (evt->type == IOC_EVT_MOUNT_EVENT) type_str = "MOUNT_EVENT";
-    printf("[%s] [%-5s] PID:%d TGID:%d UID:%d GID:%d COMM:'%s' -> ",
-           timestamp_str, type_str,
-           evt->pid, evt->tgid, evt->uid, evt->gid, evt->type == IOC_EVT_EXEC_FILE ? evt->exec.file_path : "");
+    // printf("[%s] [%-5s] PID:%d TGID:%d UID:%d GID:%d COMM:'%s' -> ",
+    //        timestamp_str, type_str,
+    //        evt->pid, evt->tgid, evt->uid, evt->gid, evt->type == IOC_EVT_EXEC_FILE ? evt->exec.file_path : "");
     MountInfo mount_info;
     switch (evt->type) {
         case IOC_EVT_EXEC_FILE:
@@ -106,15 +107,29 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
                 struct in_addr addr4;
                 addr4.s_addr = evt->net.daddr_v4;
                 inet_ntop(AF_INET, &addr4, ip_str, sizeof(ip_str));
+                // printf("[CONNECT_EVENT] AF_INET protocol=%u -> %s:%u\n",
+                // evt->net.protocol, ip_str, ntohs(evt->net.dport));
             } else if (evt->net.family == AF_INET6) {
+                // printf("IPv6 raw: ");
+                // for (int i = 0; i < 16; i++) {
+                //     printf("%02x", evt->net.daddr_v6[i]);
+                //     if (i % 2 == 1 && i != 15) printf(":");
+                // }
+                // printf("\n");
                 // IPv6
-                inet_ntop(AF_INET6, evt->net.daddr_v6, ip_str, sizeof(ip_str));
+                struct in6_addr addr6;
+                memcpy(&addr6, evt->net.daddr_v6, sizeof(addr6));
+                if (inet_ntop(AF_INET6, &addr6, ip_str, sizeof(ip_str)) == NULL) {
+                    perror("inet_ntop");
+                    snprintf(ip_str, sizeof(ip_str), "InvalidIPv6");
+                }
+                // printf("[CONNECT_EVENT] AF_INET6 protocol=%u -> %s:%u\n",
+                //     evt->net.protocol, ip_str, ntohs(evt->net.dport));
             } else {
                 snprintf(ip_str, sizeof(ip_str), "UnknownFamily");
             }
-
-            printf("[CONNECT_EVENT] pid=%u protocol=%u -> %s:%u\n",
-                evt->net.pid, evt->net.protocol, ip_str, ntohs(evt->net.dport));
+            printf("[CONNECT_EVENT] %s protocol=%u -> %s:%u\n",evt->net.family == AF_INET ? "AF_INET" : "AF_INET6",
+                evt->net.protocol, ip_str, ntohs(evt->net.dport));
             break;
         case IOC_EVT_CMD_CONTROL:
             printf("Command='%s'\n", evt->cmd.cmd);
@@ -244,7 +259,7 @@ void* socket_thread(void* arg) {
         if(server_stop) {exiting = 1;}
         if(exiting) {server_stop = 1;}
     }
-    
+    // bpf_program__attach_xdp()
     close(server_fd);
     printf("[Server Thread] Server is shutting down.\n");
     return NULL;
@@ -301,6 +316,8 @@ int main() {
         goto cleanup;
     }
     err_all = ioc_block_bpf__attach(skel_ioc_block);
+    // ifindex = if_nametoindex("ens33"); 
+    // bpf_program__attach_xdp(skel_ioc_block->progs.xdp_pass, ifindex);
     if(err_all) {
         fprintf(stderr, "[user space main.c] Failed to attach ioc-block BPF skeleton: %d\n", err_all);
         goto cleanup;
