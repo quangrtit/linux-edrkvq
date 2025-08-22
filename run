@@ -54,3 +54,5 @@ sudo /mnt/test_mount/test_script.sh
 sudo umount /mnt/test_mount
 sudo rmdir /mnt/test_mount
 sudo rm test_drive.img
+
+sudo bpftool map show

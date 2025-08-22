@@ -130,7 +130,10 @@ struct net_payload {
     __u16 dport;        // dest port
     __u32 protocol;     // TCP/UDP
 };
-
+struct ip_lpm_key {
+    __u32 prefixlen;   // bit length: 32 cho IPv4, 128 cho IPv6
+    __u8  data[16];    // IPv4 dùng 4 byte đầu, IPv6 dùng đủ 16 byte
+};
 // Payload for IOC_CMD_CONTROL
 struct cmd_payload {
     char cmd[NAME_MAX];        

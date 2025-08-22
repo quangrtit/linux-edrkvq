@@ -128,7 +128,7 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
             } else {
                 snprintf(ip_str, sizeof(ip_str), "UnknownFamily");
             }
-            printf("[CONNECT_EVENT] %s protocol=%u -> %s:%u\n",evt->net.family == AF_INET ? "AF_INET" : "AF_INET6",
+            printf("[BLOCK PACKET CONNECT_EVENT] %s protocol=%u -> %s:%u\n",evt->net.family == AF_INET ? "AF_INET" : "AF_INET6",
                 evt->net.protocol, ip_str, ntohs(evt->net.dport));
             break;
         case IOC_EVT_CMD_CONTROL:
@@ -280,6 +280,30 @@ int main() {
     //     printf("deletet hash success!\n");
     // }
     ioc_db.add_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE), IOCMeta());
+    // int cnt = 0;
+    // auto start = std::chrono::high_resolution_clock::now();
+    // MDB_txn* txn;
+    // mdb_txn_begin(ioc_db.env, nullptr, MDB_RDONLY, &txn);
+    // {
+    //     MDB_cursor* cursor;
+    //     mdb_cursor_open(txn, ioc_db.ip_dbi, &cursor);
+    //     MDB_val key, data;
+    //     while (mdb_cursor_get(cursor, &key, &data, MDB_NEXT) == 0) {
+    //         std::string k((char*)key.mv_data, key.mv_size);
+    //         std::string v((char*)data.mv_data, data.mv_size);
+    //         // std::cout << "Key: " << k << "\n";
+    //         IOCMeta meta = IOCMeta::deserialize(v);
+    //         cnt += 1;
+    //         // std::cout << "  First Seen: " << meta.first_seen
+    //         //           << ", Last Seen: " << meta.last_seen
+    //         //           << ", Source: " << meta.source << "\n";
+    //     }
+    //     mdb_cursor_close(cursor);
+    // }
+    // mdb_txn_abort(txn);
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double, std::milli> elapsed = end - start;
+    // std::cout << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;
@@ -291,7 +315,7 @@ int main() {
     struct ring_buffer *rb_self_defense = NULL;
     struct ring_buffer *rb_ioc_block = NULL;
     int err_all;
-
+    std::vector<unsigned int> all_val;
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
     signal(SIGHUP, sig_handler);
@@ -309,6 +333,9 @@ int main() {
     }
     const char *policy_file = get_policy_path();
     err_all = load_and_apply_policies(skel_self_defense, policy_file);
+    if(load_ioc_ip_into_kernel_map(skel_ioc_block, ioc_db)) {
+         fprintf(stderr, "[user space main.c] load IOC IP success\n");
+    }
     // Attach tracepoints
     err_all = self_defense_bpf__attach(skel_self_defense);
     if (err_all) {
@@ -316,8 +343,9 @@ int main() {
         goto cleanup;
     }
     err_all = ioc_block_bpf__attach(skel_ioc_block);
-    // ifindex = if_nametoindex("ens33"); 
-    // bpf_program__attach_xdp(skel_ioc_block->progs.xdp_pass, ifindex);
+    ifindex = if_nametoindex("ens33"); 
+    bpf_program__attach_xdp(skel_ioc_block->progs.xdp_ioc_block, ifindex);
+    all_val = get_all_default_ifindexes();
     if(err_all) {
         fprintf(stderr, "[user space main.c] Failed to attach ioc-block BPF skeleton: %d\n", err_all);
         goto cleanup;

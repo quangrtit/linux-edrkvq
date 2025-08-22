@@ -29,6 +29,11 @@
 #include <cstring>
 #include <vector>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <ifaddrs.h>
+#include <bpf/libbpf.h>
+#include <algorithm>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128
@@ -42,7 +47,7 @@
 #define LOCK_PATH "/var/run/sentinel.lock"
 #define PORT 8080
 #define BUFFER_SIZE 1024
-
+#define MAX_IFACES 16
 #ifndef DEFAULT_POLICY_FILE_PATH
 #define DEFAULT_POLICY_FILE_PATH "/var/lib/SentinelEDR/self_defense_policy.json"
 #endif
@@ -149,6 +154,11 @@ struct net_payload {
     __u32 protocol;     // TCP/UDP
 };
 
+
+struct ip_lpm_key {
+    __u32 prefixlen;   // bit length: 32 cho IPv4, 128 cho IPv6
+    __u8  data[16];    // IPv4 dùng 4 byte đầu, IPv6 dùng đủ 16 byte
+};
 // Payload for IOC_CMD_CONTROL
 struct cmd_payload {
     char cmd[NAME_MAX];        

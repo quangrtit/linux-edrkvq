@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "common_user.h"
+#include "ioc_database.h"
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -155,6 +156,160 @@ bool is_executable_fd(int fd) {
     if (fstat(fd, &st) != 0)
         return false;
     return (st.st_mode & S_IXUSR) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH);
+}
+
+
+bool load_ioc_ip_into_kernel_map(struct ioc_block_bpf *skel, IOCDatabase &ioc_db) {
+    int map_fd = bpf_map__fd(skel->maps.ioc_ip_map);
+    if (map_fd < 0) {
+        perror("bpf_map__fd");
+        return false;
+    }
+
+    MDB_txn* txn;
+    MDB_cursor* cursor;
+    if (mdb_txn_begin(ioc_db.env, nullptr, MDB_RDONLY, &txn) != 0)
+        return false;
+    if (mdb_cursor_open(txn, ioc_db.ip_dbi, &cursor) != 0) {
+        mdb_txn_abort(txn);
+        return false;
+    }
+
+    MDB_val key, data;
+    while (mdb_cursor_get(cursor, &key, &data, MDB_NEXT) == 0) {
+        std::string ip_str((char*)key.mv_data, key.mv_size);
+
+        struct ip_lpm_key lpm_key = {};
+        __u32 verdict = 1; // block
+
+        if (ip_str.find(':') != std::string::npos) {
+            // IPv6
+            lpm_key.prefixlen = 128;
+            if (inet_pton(AF_INET6, ip_str.c_str(), lpm_key.data) != 1) {
+                fprintf(stderr, "Invalid IPv6: %s\n", ip_str.c_str());
+                continue;
+            }
+        } else {
+            // IPv4
+            lpm_key.prefixlen = 32;
+            if (inet_pton(AF_INET, ip_str.c_str(), lpm_key.data) != 1) {
+                fprintf(stderr, "Invalid IPv4: %s\n", ip_str.c_str());
+                continue;
+            }
+        }
+
+        if (bpf_map__update_elem(
+                skel->maps.ioc_ip_map,
+                &lpm_key, sizeof(lpm_key),
+                &verdict, sizeof(verdict),
+                BPF_ANY) != 0) {
+            perror("bpf_map__update_elem false\n");
+        }
+    }
+
+    mdb_cursor_close(cursor);
+    mdb_txn_abort(txn);
+    return true;
+}
+// Check interface IPv4
+int has_default_route4(const char *ifname) {
+    FILE *f = fopen("/proc/net/route", "r");
+    if (!f) return 0;
+
+    char line[256];
+    fgets(line, sizeof(line), f); // skip header
+    int found = 0;
+
+    while (fgets(line, sizeof(line), f)) {
+        char iface[IFNAMSIZ];
+        unsigned long dest;
+        if (sscanf(line, "%s %lx", iface, &dest) != 2) continue;
+        if (dest == 0 && strcmp(iface, ifname)==0) {
+            found = 1;
+            break;
+        }
+    }
+    fclose(f);
+    return found;
+}
+
+// Check interface IPv6
+int has_default_route6(const char *ifname) {
+    if (!ifname) return 0;
+
+    // Get ifindex from /sys/class/net/<ifname>/ifindex
+    char path[256];
+    snprintf(path, sizeof(path), "/sys/class/net/%s/ifindex", ifname);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+
+    int ifidx = -1;
+    if (fscanf(f, "%d", &ifidx) != 1 || ifidx <= 0) {
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+
+    // Open /proc/net/ipv6_route
+    f = fopen("/proc/net/ipv6_route", "r");
+    if (!f) {
+        perror("open /proc/net/ipv6_route");
+        return 0;
+    }
+
+    char line[512];
+    while (fgets(line, sizeof(line), f)) {
+        char dest[33], plen[3], src[33], splen[3], nexthop[33];
+        unsigned long metric, refcnt, use, flags, route_ifidx;
+
+        int n = sscanf(line,
+                       "%32s %2s %32s %2s %32s %lx %lx %lx %lx %lx",
+                       dest, plen, src, splen, nexthop,
+                       &metric, &refcnt, &use, &flags, &route_ifidx);
+
+        if (n == 10) {
+            // check default route (dest = all zero, plen = 00)
+            if (strcmp(dest, "00000000000000000000000000000000") == 0 &&
+                strcmp(plen, "00") == 0) {
+                if ((int)route_ifidx == ifidx) {
+                    fclose(f);
+                    return 1;
+                }
+            }
+        }
+    }
+
+    fclose(f);
+    return 0;
+}
+
+std::vector<unsigned int> get_all_default_ifindexes() {
+    std::vector<unsigned int> res;
+    struct ifaddrs *ifaddr, *ifa;
+
+    if (getifaddrs(&ifaddr) == -1) {
+        perror("getifaddrs");
+        return res;
+    }
+
+    for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_name || !(ifa->ifa_flags & IFF_UP)) continue;
+
+        unsigned int idx = if_nametoindex(ifa->ifa_name);
+
+        // check dup
+        if (std::find(res.begin(), res.end(), idx) != res.end())
+            continue;
+
+        if (has_default_route4(ifa->ifa_name) || has_default_route6(ifa->ifa_name)) {
+            res.push_back(idx);
+            std::cout << "Found default route on " << ifa->ifa_name
+                      << " (ifindex=" << idx << ")\n";
+        }
+    }
+
+    freeifaddrs(ifaddr);
+    return res;
 }
 // const char *get_ioc_db_path() {
 

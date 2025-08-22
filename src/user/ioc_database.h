@@ -1,7 +1,6 @@
 #ifndef _IOC_DATABASE_H
 #define _IOC_DATABASE_H
 
-#include "utils.h"
 #include "common_user.h"
 #include <lmdb.h>
 #include <iostream>
