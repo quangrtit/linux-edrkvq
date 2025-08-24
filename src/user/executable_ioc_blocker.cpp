@@ -33,7 +33,7 @@ bool ExecutableIOCBlocker::start() {
     fan_fd = fanotify_init(FAN_CLASS_CONTENT | FAN_NONBLOCK, O_RDONLY | O_LARGEFILE);
     if (fan_fd < 0) return false;
     enumerate_mounts_and_mark();
-    if (fanotify_mark(fan_fd, FAN_MARK_ADD | FAN_MARK_MOUNT, FAN_OPEN_EXEC_PERM, AT_FDCWD, "/home") < 0) {
+    if (fanotify_mark(fan_fd, FAN_MARK_ADD | FAN_MARK_MOUNT, FAN_OPEN_EXEC_PERM, AT_FDCWD, "/") < 0) {
         close(fan_fd);
         fan_fd = -1;
         return false;

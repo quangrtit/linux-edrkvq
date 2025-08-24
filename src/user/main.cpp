@@ -274,12 +274,13 @@ int main() {
     }
 
     IOCDatabase ioc_db(IOC_DB_PATH);
+    ioc_db.add_file_hash(calculate_sha256_fast("/home/quang/myLib/vcs-ajiant-edr/test_environment/tmp/main"), IOCMeta());
     // update_database(ioc_db);
     // ioc_db.dump_database_info();
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }
-    ioc_db.add_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE), IOCMeta());
+    // ioc_db.add_file_hash(calculate_sha256_fast("/mnt/test_mount/test_script.sh"), IOCMeta());
     // int cnt = 0;
     // auto start = std::chrono::high_resolution_clock::now();
     // MDB_txn* txn;
@@ -304,6 +305,7 @@ int main() {
     // auto end = std::chrono::high_resolution_clock::now();
     // std::chrono::duration<double, std::milli> elapsed = end - start;
     // std::cout << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
+    // std::cout << "this is database path: " << IOC_DB_PATH << std::endl;
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;

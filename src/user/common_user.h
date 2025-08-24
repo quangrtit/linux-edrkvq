@@ -48,14 +48,22 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define MAX_IFACES 16
+
+#define BASE_POLICY_DIR "/var/lib/SentinelEDR"
 #ifndef DEFAULT_POLICY_FILE_PATH
-#define DEFAULT_POLICY_FILE_PATH "/var/lib/SentinelEDR/self_defense_policy.json"
+#define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
 #endif
-#define IOC_DB_PATH "IOC_DB" 
-#define IOC_HASH_FILE_PATH "IOC_DB/ioc_file_hash"
-#define IOC_IP_PATH "IOC_DB/ioc_ip"
+#ifndef IOC_DB_PATH
+#define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
+#endif
+
+#define IOC_HASH_FILE_PATH "ioc_file_hash"
+#define IOC_IP_PATH "ioc_ip"
 #define FILE_TEST_BLOCK_EXE "main_test_block_exe"
 
+#define PATH_LOG_ERROR "/home/quang/myLib/vcs-ajiant-edr/build/log.txt"
+
+// std::fstream file_log(PATH_LOG_ERROR);
 
 enum log_level {
     INFO,
