@@ -56,3 +56,4 @@ sudo rmdir /mnt/test_mount
 sudo rm test_drive.img
 
 sudo bpftool map show
+journalctl -u SentinelEDR -f

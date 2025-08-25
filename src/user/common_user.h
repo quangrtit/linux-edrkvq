@@ -56,14 +56,16 @@
 #ifndef IOC_DB_PATH
 #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
 #endif
+// #define IOC_DB_PATH "/home/ubuntu/lib/vcs-ajiant-edr/configs/IOC_DB"
+// #define IOC_HASH_FILE_PATH "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_file_hash"
+// #define IOC_IP_PATH "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_ip"
+#define IOC_HASH_FILE_PATH "IOC_DB/ioc_file_hash"
+#define IOC_IP_PATH "IOC_DB/ioc_ip"
 
-#define IOC_HASH_FILE_PATH "ioc_file_hash"
-#define IOC_IP_PATH "ioc_ip"
 #define FILE_TEST_BLOCK_EXE "main_test_block_exe"
 
-#define PATH_LOG_ERROR "/home/quang/myLib/vcs-ajiant-edr/build/log.txt"
+#define PATH_LOG_ERROR "/home/ubuntu/lib/vcs-ajiant-edr/build/log.txt" 
 
-// std::fstream file_log(PATH_LOG_ERROR);
 
 enum log_level {
     INFO,

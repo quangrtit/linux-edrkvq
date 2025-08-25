@@ -375,55 +375,55 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 // inode_permission
 // all protect processes
 // block kill process
-SEC("lsm/task_kill")
-int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
-{
-    // return 0;
-    char* comm = BPF_CORE_READ(p, comm);
-    // if(bpf_strncmp(comm, sizeof(comm), "edr_main") == 0) {
-    //     send_debug_log(INFO, comm);
-    // }
-    __u32 pid = BPF_CORE_READ(p, pid);
-    __u32 tgid = BPF_CORE_READ(p, tgid);
-    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+// SEC("lsm/task_kill")
+// int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
+// {
+//     // return 0;
+//     char* comm = BPF_CORE_READ(p, comm);
+//     // if(bpf_strncmp(comm, sizeof(comm), "edr_main") == 0) {
+//     //     send_debug_log(INFO, comm);
+//     // }
+//     __u32 pid = BPF_CORE_READ(p, pid);
+//     __u32 tgid = BPF_CORE_READ(p, tgid);
+//     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
 
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
-    // bpf_printk("have all pid %d %d\n", pid, tgid);
-    struct process_policy_value *policy = lookup_process_policy(pid);
-    if (!policy) {
-        policy = lookup_process_policy(tgid);
-    }
-    if (policy && policy->block_termination) {
-        bpf_printk("BLOCK_ACTION, [kernel space task_kill] Blocked termination");
-        send_debug_log(BLOCKED_ACTION, "[kernel space task_kill] Blocked termination");
-        return -EPERM;
-    }
-    return 0;
-}
+//     // if (flag && *flag == 1) {
+//     //     return 0;  
+//     // }
+//     // bpf_printk("have all pid %d %d\n", pid, tgid);
+//     struct process_policy_value *policy = lookup_process_policy(pid);
+//     if (!policy) {
+//         policy = lookup_process_policy(tgid);
+//     }
+//     if (policy && policy->block_termination) {
+//         bpf_printk("BLOCK_ACTION, [kernel space task_kill] Blocked termination");
+//         send_debug_log(BLOCKED_ACTION, "[kernel space task_kill] Blocked termination");
+//         return -EPERM;
+//     }
+//     return 0;
+// }
 //  block debug memory 
-SEC("lsm/ptrace_access_check")
-int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
-{
-    // return 0;
-    __u32 pid = BPF_CORE_READ(child, pid);
-    // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
-    // __u32 tracer_pid = bpf_get_current_pid_tgid() >> 32;
-    // if(tracer_pid == pid) {
-    //     return 0;
-    // }
-    struct process_policy_value *policy = lookup_process_policy(pid);
-    if (policy && policy->block_injection) {
-        send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked injection shellcode by ptrace");
-        return -EPERM;  
-    }
+// SEC("lsm/ptrace_access_check")
+// int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
+// {
+//     // return 0;
+//     __u32 pid = BPF_CORE_READ(child, pid);
+//     // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+//     // if (flag && *flag == 1) {
+//     //     return 0;  
+//     // }
+//     // __u32 tracer_pid = bpf_get_current_pid_tgid() >> 32;
+//     // if(tracer_pid == pid) {
+//     //     return 0;
+//     // }
+//     struct process_policy_value *policy = lookup_process_policy(pid);
+//     if (policy && policy->block_injection) {
+//         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked injection shellcode by ptrace");
+//         return -EPERM;  
+//     }
 
-    return 0;  
-}
+//     return 0;  
+// }
 // block limit resource 
 // hook task_prlimit
 SEC("lsm/task_setrlimit")

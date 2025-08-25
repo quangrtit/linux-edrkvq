@@ -3,13 +3,31 @@ Description=Self Defense Daemon
 
 [Service]
 ExecStart=/usr/local/bin/SentinelEDR
-Restart=no
+Restart=on-failure
 User=root
-ProtectSystem=full
-NoNewPrivileges=true
 KillMode=control-group
 KillSignal=SIGTERM
-TimeoutStopSec=2
+TimeoutStartSec=10
+TimeoutStopSec=5
+
+# Capabilities cho fanotify
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SYS_PTRACE CAP_SYS_RESOURCE CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH
+AmbientCapabilities=CAP_SYS_ADMIN CAP_SYS_PTRACE CAP_SYS_RESOURCE CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH
+NoNewPrivileges=false
+
+# Disable sandbox systemd
+ProtectSystem=off
+ProtectHome=off
+PrivateTmp=no
+PrivateMounts=no
+ProtectKernelModules=no
+ProtectKernelTunables=no
+ProtectControlGroups=no
+PrivateNetwork=no
+PrivateDevices=no
+
+# Export env
+Environment=HOME=/root
 
 [Install]
 WantedBy=multi-user.target

@@ -19,6 +19,7 @@ public:
     void enumerate_mounts_and_mark();
     bool add_mount(const std::string &path, const MountInfo& mount_info);
     bool remove_mount(const std::string &path);
+    std::ofstream file_log;
 private:
     void loop();    
 
