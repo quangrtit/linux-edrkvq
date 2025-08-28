@@ -1,0 +1,53 @@
+#!/bin/bash
+set -e
+
+check_bpf_lsm() {
+    echo "[*] Checking BPF LSM support..."
+
+    # Nếu đã có bpf trong LSM thì ok
+    if grep -qw "bpf" /sys/kernel/security/lsm 2>/dev/null; then
+        echo "[+] BPF LSM is already enabled: $(cat /sys/kernel/security/lsm)"
+        return 0
+    fi
+
+    # Nếu kernel không bật CONFIG_BPF_LSM thì chịu
+    if ! grep -q "CONFIG_BPF_LSM=y" /boot/config-$(uname -r) 2>/dev/null; then
+        echo "[!] Kernel is missing CONFIG_BPF_LSM=y"
+        echo "    Please install a newer kernel with BPF LSM support."
+        return 1
+    fi
+
+    # Nếu kernel có hỗ trợ nhưng chưa add vào boot param
+    echo "[*] Kernel supports BPF LSM but it's not enabled. Patching GRUB..."
+
+    GRUB_CFG="/etc/default/grub"
+    if [ -f "$GRUB_CFG" ]; then
+        if grep -q 'GRUB_CMDLINE_LINUX_DEFAULT=.*lsm=' "$GRUB_CFG"; then
+            sed -i 's/lsm=\([^"]*\)"/lsm=\1,bpf"/' "$GRUB_CFG"
+        else
+            sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="lsm=bpf /' "$GRUB_CFG"
+        fi
+
+        echo "[*] Updating grub config..."
+        update-grub || true
+
+        echo "[!] BPF LSM will be enabled after reboot. Please reboot your system."
+    else
+        echo "[!] Could not find $GRUB_CFG, please configure bootloader manually."
+        return 1
+    fi
+}
+
+case "$1" in
+    configure)
+        echo "[*] Installing and enabling SentinelEDR service..."
+        systemctl daemon-reload || true
+        systemctl enable SentinelEDR.service || true
+        # KHÔNG restart ở đây nữa, vì nếu thiếu bpf sẽ fail → để lần boot sau
+        # systemctl restart SentinelEDR.service || true
+
+        check_bpf_lsm
+    ;;
+esac
+
+exit 0

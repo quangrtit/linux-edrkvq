@@ -3,7 +3,7 @@
 
 
 ExecutableIOCBlocker::ExecutableIOCBlocker(volatile sig_atomic_t* external_exit, IOCDatabase &db)
-    : fan_fd(-1), exiting(external_exit), ioc_db(db) {file_log.open(PATH_LOG_ERROR, std::fstream::in | std::fstream::out | std::fstream::app);file_log.setf(std::ios::unitbuf);}
+    : fan_fd(-1), exiting(external_exit), ioc_db(db) {}
 
 ExecutableIOCBlocker::~ExecutableIOCBlocker() {
     stop();
@@ -34,14 +34,11 @@ bool ExecutableIOCBlocker::start() {
     if (fan_fd < 0) return false;
     enumerate_mounts_and_mark();
     if (fanotify_mark(fan_fd, FAN_MARK_ADD | FAN_MARK_FILESYSTEM, FAN_OPEN_EXEC_PERM, AT_FDCWD, "/") < 0) {
-        fprintf(stderr, "false 1\n");
         perror("fanotify_mark add /");
         close(fan_fd);
         fan_fd = -1;
         return false;
     }
-    file_log << "start log1\n";
-    fprintf(stderr, "false 2\n");
     worker_thread = std::thread(&ExecutableIOCBlocker::loop, this);
     return true;
 }
@@ -63,12 +60,10 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
         malicious = cache_inode_policy_map.count(file_key) > 0;
     }
     if(!malicious) {
-        fprintf(stderr, "false false '%s': %s\n", real_path, strerror(errno));
         std::string hash_check = calculate_sha256_fast(real_path);
-        fprintf(stderr, "true true '%s': %s\n", hash_check.c_str(), strerror(errno));   
+        // fprintf(stderr, "true true '%s': %s\n", hash_check.c_str(), strerror(errno));   
         // check malicious
         IOCMeta result;
-        // printf("start hash: %s......\n", real_path);
         malicious = ioc_db.get_file_hash(hash_check, result); // memory load ????
         if(malicious) { // cache malicious
             auto end = std::chrono::high_resolution_clock::now();
@@ -79,10 +74,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    // file_log << "Time to hash file: ";
-    // file_log << elapsed.count() << "\n";
     // printf("Time to hash file %s : %.3f ms\n", real_path, elapsed.count());
-    fprintf(stderr, "false 666666666666666666666666666666666666666666666666666666666666666666\n");
     return malicious;
 }
 bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& mount_info) {
@@ -100,7 +92,7 @@ bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& m
     return true;
 }
 bool ExecutableIOCBlocker::remove_mount(const std::string &path) {
-    return false;
+    // return false;
     if (fan_fd < 0) return false;
 
     auto it = mount_cache.find(path);
@@ -174,8 +166,6 @@ void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
 //     return false;
 // }
 void ExecutableIOCBlocker::loop() {
-    file_log << "start log2\n";
-    fprintf(stderr, "false 3\n");
     struct pollfd fds[1];
     fds[0].fd = fan_fd;
     fds[0].events = POLLIN;
@@ -193,13 +183,10 @@ void ExecutableIOCBlocker::loop() {
 
         ssize_t len = read(fan_fd, buffer, sizeof(buffer));
         if (len <= 0) continue;
-        file_log << "start log 3\n";
-        fprintf(stderr, "false 4\n");
         struct fanotify_event_metadata *metadata;
         for (metadata = (struct fanotify_event_metadata *)buffer;
             FAN_EVENT_OK(metadata, len);
             metadata = FAN_EVENT_NEXT(metadata, len)) {
-            fprintf(stderr, "false 5\n");
             if (metadata->mask & FAN_OPEN_EXEC_PERM) {
 
                 struct fanotify_response response = {
@@ -256,7 +243,6 @@ void ExecutableIOCBlocker::loop() {
                     
               
                     try {
-                        file_log << "start log 4\n";
                         bool malicious = check_exe_malicious(real_path, ioc_db);
                         
                         if (malicious) {
