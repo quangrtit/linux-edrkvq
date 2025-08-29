@@ -49,12 +49,20 @@
 #define BUFFER_SIZE 1024
 #define MAX_IFACES 16
 
+// #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
+// #ifndef DEFAULT_POLICY_FILE_PATH
+// #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
+// #endif
+// #ifndef IOC_DB_PATH
+// #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
+// #endif
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
+
 #ifndef DEFAULT_POLICY_FILE_PATH
 #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
-#endif
-#ifndef IOC_DB_PATH
 #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
+#else
+#define IOC_DB_PATH "/IOC_DB"
 #endif
 // #define IOC_DB_PATH "/home/ubuntu/lib/vcs-ajiant-edr/configs/IOC_DB"
 // #define IOC_HASH_FILE_PATH "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_file_hash"

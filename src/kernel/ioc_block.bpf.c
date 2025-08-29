@@ -292,3 +292,13 @@ int on_sys_enter_umount(struct trace_event_raw_sys_enter *ctx)
 
     return 0;
 }
+SEC("lsm/bprm_creds_from_file") 
+int BPF_PROG(bprm_creds_from_file, struct linux_binprm *bprm, struct file *file, int ret) {
+
+    if (ret != 0 ) {
+        return ret;
+    }
+    bpf_printk("have one file exe\n");
+
+    return 0;
+}
