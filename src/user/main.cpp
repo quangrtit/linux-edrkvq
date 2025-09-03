@@ -337,7 +337,7 @@ int main() {
         return 1;
     }
     const char *policy_file = get_policy_path();
-    err_all = load_and_apply_policies(skel_self_defense, policy_file);
+    err_all = load_and_apply_policies(skel_self_defense, skel_ioc_block, policy_file);
     if(load_ioc_ip_into_kernel_map(skel_ioc_block, ioc_db)) {
          fprintf(stderr, "[user space main.c] load IOC IP success\n");
     }

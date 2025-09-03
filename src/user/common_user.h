@@ -91,6 +91,12 @@ struct log_debug {
     char msg[LOG_MSG_MAX_LEN];
 };
 
+#define FILELESS_PROFILE_KEY 0
+enum fileless_lock_policy_value {
+    FILELESS_ALLOW,
+    FILELESS_RESTRICTED,
+    FILELESS_BASELINE
+};
 
 typedef long long unsigned int file_policy_key_t;
 struct file_policy_value {

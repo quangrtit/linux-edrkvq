@@ -96,5 +96,10 @@
       "block_setnice": true,
       "block_setioprio": true
     }
+  ], 
+  "fileless_lock_rules": [
+    {
+      "policy": "RESTRICTED"
+    }
   ]
 }

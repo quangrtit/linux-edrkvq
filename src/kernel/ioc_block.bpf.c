@@ -40,6 +40,12 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
 } ioc_ip_map SEC(".maps");
 
+struct {
+        __uint(type, BPF_MAP_TYPE_HASH);
+        __uint(max_entries, 5);
+        __type(key, uint32_t);
+        __type(value, uint32_t);
+} filelesslock_args_map SEC(".maps");
 // static function
 static __always_inline void send_ioc_event(enum ioc_event_type type, void *data) {
     struct ioc_event *evt;
@@ -295,10 +301,36 @@ int on_sys_enter_umount(struct trace_event_raw_sys_enter *ctx)
 SEC("lsm/bprm_creds_from_file") 
 int BPF_PROG(bprm_creds_from_file, struct linux_binprm *bprm, struct file *file, int ret) {
 
+    uint32_t *val, blocked = 0, reason = 0, zero = 0;
+    uint32_t k = FILELESS_PROFILE_KEY;
+    unsigned int links;
+    // struct process_event *event;
+    struct task_struct *task;
+    struct file *f;
+    const unsigned char *p;
+
     if (ret != 0 ) {
         return ret;
     }
-    bpf_printk("have one file exe\n");
 
+    links = BPF_CORE_READ(file, f_path.dentry, d_inode, __i_nlink);
+    if (links > 0) {
+        return ret;
+    }
+    bpf_printk("have file exe debug\n");
+    val = bpf_map_lookup_elem(&filelesslock_args_map, &k);
+    if (!val) {
+        return ret;
+    }
+    blocked = *val;
+    if (blocked == FILELESS_ALLOW) {
+        return ret;
+    }
+    else if(blocked == FILELESS_RESTRICTED) {
+        return -EPERM;
+    }
+    else if (blocked == FILELESS_BASELINE) {
+        return ret;
+    }
     return 0;
 }

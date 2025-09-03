@@ -42,6 +42,7 @@
 #define ETH_P_IP    0x0800  /* IPv4 */
 #define ETH_P_IPV6  0x86DD  /* IPv6 */
 
+
 enum log_level {
     INFO,
     WARNING,
@@ -58,6 +59,12 @@ struct log_debug {
     char msg[LOG_MSG_MAX_LEN];
 };
 
+#define FILELESS_PROFILE_KEY 0
+enum fileless_lock_policy_value {
+    FILELESS_ALLOW,
+    FILELESS_RESTRICTED,
+    FILELESS_BASELINE
+};
 // typedef char file_policy_key_t[MAX_PATH_LEN];
 typedef __u64 file_policy_key_t;
 struct file_policy_value {
