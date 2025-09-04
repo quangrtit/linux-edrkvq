@@ -60,6 +60,7 @@ struct log_debug {
 };
 
 #define FILELESS_PROFILE_KEY 0
+#define DISABLE_MODULE_AUTOLOAD 0
 enum fileless_lock_policy_value {
     FILELESS_ALLOW,
     FILELESS_RESTRICTED,

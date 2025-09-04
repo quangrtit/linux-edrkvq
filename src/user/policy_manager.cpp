@@ -123,6 +123,16 @@ int apply_fileless_lock_policy(struct ioc_block_bpf *skel, const uint32_t value)
     }
     return 0;
 }
+
+int apply_disable_module_autoload_policy(struct self_defense_bpf *skel, const uint32_t value) {
+    uint32_t key = 0;
+    int err = bpf_map__update_elem(skel->maps.disable_module_autoload_args_map, &key, sizeof(key), &value, sizeof(value), BPF_ANY);
+    if (err) {
+        fprintf(stderr, "[user space policy_manager.cpp] Failed to apply process policy for PID %d: %s\n", value, strerror(errno));
+        return err;
+    }
+    return 0;
+}
 int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf* skel_ioc, const char *json_filepath) {
     FILE *fp = fopen(json_filepath, "r");
     if (fp == NULL) {
@@ -269,6 +279,18 @@ int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf*
                 printf("known fileless policy ____________ debug: %s\n", fileless_policy);
                 apply_fileless_lock_policy(skel_ioc, policy_val);
             }
+        }
+    }
+    // rules for disable_module_autoload 
+    cJSON *disable_module_autoload_rules = cJSON_GetObjectItemCaseSensitive(root, "disable_module_autoload_rules");
+    if (cJSON_IsBool(disable_module_autoload_rules)) {
+        uint32_t policy_val = 0;
+        if (cJSON_IsTrue(disable_module_autoload_rules)) {
+            policy_val = 1;
+            apply_disable_module_autoload_policy(skel, policy_val);
+        } else {
+            policy_val = 0;
+            apply_disable_module_autoload_policy(skel, policy_val);
         }
     }
     // whitelist pid 

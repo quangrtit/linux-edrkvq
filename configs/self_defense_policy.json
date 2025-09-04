@@ -101,5 +101,6 @@
     {
       "policy": "RESTRICTED"
     }
-  ]
+  ],
+  "disable_module_autoload_rules": true 
 }

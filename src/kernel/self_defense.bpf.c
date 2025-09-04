@@ -39,6 +39,13 @@ struct {
     __uint(map_flags, BPF_F_NO_PREALLOC);
 } process_protection_policy SEC(".maps");
 
+// map disable_module_autoload
+struct {
+        __uint(type, BPF_MAP_TYPE_HASH);
+        __uint(max_entries, 5);
+        __type(key, uint32_t);
+        __type(value, uint32_t);
+} disable_module_autoload_args_map SEC(".maps");
 // static function
 
 static __always_inline void send_debug_log(__u32 level, const char *msg) {
@@ -481,10 +488,48 @@ int BPF_PROG(block_task_setioprio, struct task_struct *p, int ioprio)
     LSM_HOOK(int, 0, task_getpgid, struct task_struct *p)
     LSM_HOOK(int, 0, task_getsid, struct task_struct *p)
 */
-//SEC("lsm/inode_permission")
-// // bprm_creds_for_exec
-// SEC("lsm/bprm_creds_for_exec")
-// int BPF_PROG(block_ldpreload, struct linux_binprm *bprm) {
+
+SEC("lsm/kernel_module_request")
+int BPF_PROG(kernel_module_request_hook, char *kmod_name, int ret)
+{
+    uint32_t *val;
+    uint32_t block = 0;
+    uint32_t k = DISABLE_MODULE_AUTOLOAD;
+    if (ret != 0) {
+        return ret;
+    }
+    val = bpf_map_lookup_elem(&disable_module_autoload_args_map, &k);
+    if(!val) {
+        return 0;
+    }
+    block = *val;
+    if(block == 1) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space kernel_module_request] Blocked load module");
+        return -EPERM;   
+    }
+	return 0;
+}
+/* TODO: complete with kernel_read_file calls too */
+SEC("lsm/kernel_read_file")
+int BPF_PROG(kernel_read_modulefile,
+             struct file *file,
+             enum kernel_read_file_id id)
+{
     
-//     return 0;
-// }
+    uint32_t k = DISABLE_MODULE_AUTOLOAD;
+    uint32_t block = 0;
+    uint32_t *val = bpf_map_lookup_elem(&disable_module_autoload_args_map, &k);
+    if (!val)
+        return 0;
+    block = *val;
+    if(id != READING_MODULE) {
+        return 0;
+    }
+    if (block == 1) {
+        send_debug_log(BLOCKED_ACTION, "[kernel space kernel_read_file] Blocked load module");
+        return -EPERM;  
+    }
+
+    return 0;
+}
+
