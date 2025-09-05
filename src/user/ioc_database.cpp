@@ -159,20 +159,20 @@ void IOCDatabase::dump_database_info() {
 
     MDB_stat stat;
     if (mdb_stat(txn, file_hash_dbi, &stat) == 0) {
-        std::cout << "[File Hash DB]\n";
-        std::cout << "  Entries: " << stat.ms_entries << "\n";
-        std::cout << "  Page Size: " << stat.ms_psize << " bytes\n";
-        std::cout << "  DB Size: " << (stat.ms_entries * stat.ms_psize) << " bytes (approx)\n";
+        std::cerr << "[File Hash DB]\n";
+        std::cerr << "  Entries: " << stat.ms_entries << "\n";
+        std::cerr << "  Page Size: " << stat.ms_psize << " bytes\n";
+        std::cerr << "  DB Size: " << (stat.ms_entries * stat.ms_psize) << " bytes (approx)\n";
     }
 
     if (mdb_stat(txn, ip_dbi, &stat) == 0) {
-        std::cout << "[IP DB]\n";
-        std::cout << "  Entries: " << stat.ms_entries << "\n";
-        std::cout << "  Page Size: " << stat.ms_psize << " bytes\n";
-        std::cout << "  DB Size: " << (stat.ms_entries * stat.ms_psize) << " bytes (approx)\n";
+        std::cerr << "[IP DB]\n";
+        std::cerr << "  Entries: " << stat.ms_entries << "\n";
+        std::cerr << "  Page Size: " << stat.ms_psize << " bytes\n";
+        std::cerr << "  DB Size: " << (stat.ms_entries * stat.ms_psize) << " bytes (approx)\n";
     }
 
-    std::cout << "\n=== File Hash Records ===\n";
+    std::cerr << "\n=== File Hash Records ===\n";
     {
         MDB_cursor* cursor;
         mdb_cursor_open(txn, file_hash_dbi, &cursor);
@@ -180,16 +180,16 @@ void IOCDatabase::dump_database_info() {
         while (mdb_cursor_get(cursor, &key, &data, MDB_NEXT) == 0) {
             std::string k((char*)key.mv_data, key.mv_size);
             std::string v((char*)data.mv_data, data.mv_size);
-            std::cout << "Key: " << k << "\n";
+            std::cerr << "Key: " << k << "\n";
             IOCMeta meta = IOCMeta::deserialize(v);
-            std::cout << "  First Seen: " << meta.first_seen
+            std::cerr << "  First Seen: " << meta.first_seen
                       << ", Last Seen: " << meta.last_seen
                       << ", Source: " << meta.source << "\n";
         }
         mdb_cursor_close(cursor);
     }
 
-    std::cout << "\n=== IP Records ===\n";
+    std::cerr << "\n=== IP Records ===\n";
     {
         MDB_cursor* cursor;
         mdb_cursor_open(txn, ip_dbi, &cursor);
@@ -197,9 +197,9 @@ void IOCDatabase::dump_database_info() {
         while (mdb_cursor_get(cursor, &key, &data, MDB_NEXT) == 0) {
             std::string k((char*)key.mv_data, key.mv_size);
             std::string v((char*)data.mv_data, data.mv_size);
-            std::cout << "Key: " << k << "\n";
+            std::cerr << "Key: " << k << "\n";
             IOCMeta meta = IOCMeta::deserialize(v);
-            std::cout << "  First Seen: " << meta.first_seen
+            std::cerr << "  First Seen: " << meta.first_seen
                       << ", Last Seen: " << meta.last_seen
                       << ", Source: " << meta.source << "\n";
         }

@@ -307,6 +307,11 @@ std::vector<unsigned int> get_all_default_ifindexes() {
     freeifaddrs(ifaddr);
     return res;
 }
-// const char *get_ioc_db_path() {
 
-// }
+std::string get_binary_dir() {
+    char buf[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf)-1);
+    if (len == -1) return ".";
+    buf[len] = '\0';
+    return std::string(dirname(buf));
+}

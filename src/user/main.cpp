@@ -275,11 +275,11 @@ int main() {
 
     IOCDatabase ioc_db(IOC_DB_PATH);
     // update_database(ioc_db);
-    // ioc_db.dump_database_info();
-    std::string hash = calculate_sha256_fast("/home/ubuntu/lib/vcs-ajiant-edr/test_environment/tmp/main");
+    ioc_db.dump_database_info();
+    std::cerr << "IOC FOLDER PATH: " << IOC_DB_PATH << std::endl;
+    // std::string hash = calculate_sha256_fast("main_test_block_exe");
     // std::cout << "hash file: " << hash << std::endl;
-    ioc_db.add_file_hash(hash, IOCMeta());
-
+    // ioc_db.add_file_hash(hash, IOCMeta());
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }

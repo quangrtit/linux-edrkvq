@@ -385,7 +385,7 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 SEC("lsm/task_kill")
 int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
 {
-    return 0;
+    // return 0;
     char* comm = BPF_CORE_READ(p, comm);
     // if(bpf_strncmp(comm, sizeof(comm), "edr_main") == 0) {
     //     send_debug_log(INFO, comm);
@@ -413,7 +413,7 @@ int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int 
 SEC("lsm/ptrace_access_check")
 int BPF_PROG(block_ptrace, struct task_struct *child, unsigned int mode)
 {
-    return 0;
+    // return 0;
     __u32 pid = BPF_CORE_READ(child, pid);
     // __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
     // if (flag && *flag == 1) {

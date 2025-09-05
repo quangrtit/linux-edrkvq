@@ -26,5 +26,7 @@ int has_default_route4(const char *ifname);
 int has_default_route6(const char *ifname);
 
 std::vector<unsigned int> get_all_default_ifindexes();
-// const char *get_ioc_db_path();
+
+std::string get_binary_dir();
+
 #endif // __UTILS_H
