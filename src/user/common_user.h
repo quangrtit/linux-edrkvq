@@ -51,23 +51,30 @@
 #define MAX_IFACES 16
 
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
-#ifndef DEFAULT_POLICY_FILE_PATH
+
+// #ifndef DEFAULT_POLICY_FILE_PATH
+// #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
+// #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
+// #else
+// #define IOC_DB_PATH "IOC_DB"
+// #endif
+
+#if !defined(DEFAULT_POLICY_FILE_PATH) 
 #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
 #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
-#else
+#else 
 #define IOC_DB_PATH "IOC_DB"
 #endif
-#define IOC_HASH_FILE_PATH "IOC_DB/ioc_file_hash"
-#define IOC_IP_PATH "IOC_DB/ioc_ip"
+
 
 // build db
-// #define IOC_DB_PATH "/home/ubuntu/lib/vcs-ajiant-edr/configs/IOC_DB"
-// #define IOC_HASH_FILE_PATH "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_file_hash"
-// #define IOC_IP_PATH "/home/ubuntu/lib/vcs-ajiant-edr/tools/IOC_DB/ioc_ip"
+// #define IOC_DB_PATH "/home/quang/myLib/vcs-ajiant-edr/configs/IOC_DB"
+#define IOC_HASH_FILE_PATH "/home/quang/myLib/vcs-ajiant-edr/tools/IOC_DB/ioc_file_hash"
+#define IOC_IP_PATH "/home/quang/myLib/vcs-ajiant-edr/tools/IOC_DB/ioc_ip"
 
 #define FILE_TEST_BLOCK_EXE "main_test_block_exe"
 
-#define PATH_LOG_ERROR "/home/ubuntu/lib/vcs-ajiant-edr/build/log.txt" 
+#define PATH_LOG_ERROR "/home/quang/myLib/vcs-ajiant-edr/build/log.txt" 
 
 
 enum log_level {

@@ -61,6 +61,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     }
     if(!malicious) {
         std::string hash_check = calculate_sha256_fast(real_path);
+        if(hash_check == "e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98") std::cerr << "have one file exe: " << hash_check << "\n";
         // fprintf(stderr, "true true '%s': %s\n", hash_check.c_str(), strerror(errno));   
         // check malicious
         IOCMeta result;

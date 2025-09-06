@@ -272,14 +272,20 @@ int main() {
         fprintf(stderr, "Another instance is already running.\n");
         return 0;
     }
-
-    IOCDatabase ioc_db(IOC_DB_PATH);
+    std::string ioc_db_path;
+    DEFAULT_POLICY_FILE_PATH == "/var/lib/SentinelEDR/self_defense_policy.json" ? ioc_db_path = "/var/lib/SentinelEDR/IOC_DB" : ioc_db_path = "IOC_DB";
+    std::cerr << "IOC FOLDER PATH: " << ioc_db_path << " default policy file path: " << DEFAULT_POLICY_FILE_PATH << std::endl;
+    // ioc_db_path = "/var/lib/SentinelEDR/IOC_DB/IOC_DB";
+    IOCDatabase ioc_db(ioc_db_path);
     // update_database(ioc_db);
-    ioc_db.dump_database_info();
-    std::cerr << "IOC FOLDER PATH: " << IOC_DB_PATH << std::endl;
+    // ioc_db.dump_database_info();
+    
     // std::string hash = calculate_sha256_fast("main_test_block_exe");
     // std::cout << "hash file: " << hash << std::endl;
     // ioc_db.add_file_hash(hash, IOCMeta());
+    IOCMeta result;
+    if(ioc_db.get_file_hash("e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98", result)) {std::cout << "fuck...\n";}
+    else {std::cout << "no fuck\n";}
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }
