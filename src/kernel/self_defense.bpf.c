@@ -459,6 +459,7 @@ int BPF_PROG(block_task_setnice, struct task_struct *p, int nice)
     if (caller_pid == target_pid) {
         return 0;
     }
+    bpf_printk("check1 %d %d: ", target_pid, caller_pid);
     struct process_policy_value *policy = lookup_process_policy(target_pid);
     if (policy && policy->block_setnice) {
         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit CPU");
