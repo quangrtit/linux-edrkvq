@@ -1,4 +1,4 @@
-#define _GNU_SOURCE
+// #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -59,8 +59,8 @@ int main(int argc, char *argv[]) {
     pid_t target_pid = atoi(argv[1]);
 
     attack_setnice(target_pid);
-    // attack_setioprio(target_pid);
-    // attack_prlimit(target_pid);
+    attack_setioprio(target_pid);
+    attack_prlimit(target_pid);
 
     return 0;
 }

@@ -118,3 +118,4 @@ sử dung ptrace
 6. Chờ shellcode chạy xong → Khôi phục lại code gốc.
 7. Detach ra khỏi tiến trình đích.
 */
+// RIP = Instruction Pointer, thanh ghi lưu địa chỉ lệnh hiện tại đang được thực thi(program counter).

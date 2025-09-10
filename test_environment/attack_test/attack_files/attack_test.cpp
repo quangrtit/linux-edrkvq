@@ -38,9 +38,11 @@ pid_t get_pid_by_exe_path(const std::string& target_path) {
         ssize_t len = readlink(exe_link.c_str(), exe_path, sizeof(exe_path)-1);
         if (len == -1)
             continue; // Cannot read exe (likely not accessible)
-
+        
         exe_path[len] = '\0';
+        // printf("PID: %d, EXE: %s\n", pid, exe_path);
         if (target_path == exe_path) {
+            // std::cout << "this is pid: " << pid << std::endl;
             closedir(proc_dir);
             return pid; // Found the first matching PID
         }
@@ -51,8 +53,17 @@ pid_t get_pid_by_exe_path(const std::string& target_path) {
 }
 
 void write_file() {
-    std::ofstream ofs(target_path, std::ios::app);
-    ofs << "Appending new line.\n";
+    // std::ofstream ofs(target_path, std::ios::app);
+    // ofs << "Appending new line.\n";
+    // ofs.close();
+    std::ofstream ofs;
+    ofs.open(target_path, std::ios::app);
+    if (!ofs) {
+        std::cerr << "Error opening file for writing.\n";
+        ofs.close();
+        return;
+    }   
+    ofs << "Appending new line.\n"; 
     ofs.close();
 }
 
@@ -109,17 +120,17 @@ void open_write_only() {
     }
 }
 
-void create_symlink() {
-    const char* symlink_path = "/tmp/test_symlink";
-    unlink(symlink_path);
-    symlink(target_path, symlink_path);
-}
+// void create_symlink() {
+//     const char* symlink_path = "/tmp/test_symlink";
+//     unlink(symlink_path);
+//     symlink(target_path, symlink_path);
+// }
 
-void create_hardlink() {
-    const char* hardlink_path = "/tmp/test_hardlink";
-    unlink(hardlink_path);
-    link(target_path, hardlink_path);
-}
+// void create_hardlink() {
+//     const char* hardlink_path = "/tmp/test_hardlink";
+//     unlink(hardlink_path);
+//     link(target_path, hardlink_path);
+// }
 
 
 // Hàm mô phỏng việc cấp phát vùng nhớ ẩn danh với quyền RWX (Read, Write, Execute).
@@ -477,7 +488,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Usage: ./test_attack <test_case>\n";
         return 1;
     }
-    std::cout << "target pid: " << get_pid_by_exe_path(SENTINEL_EDR_PATH) << std::endl;
+    // std::cout << "target pid: " << get_pid_by_exe_path(SENTINEL_EDR_PATH) << std::endl;
     std::string arg = argv[1];
 
     if (arg == "1" || arg == "write") write_file();
@@ -488,16 +499,16 @@ int main(int argc, char* argv[]) {
     else if (arg == "6" || arg == "chmod") chmod_file();
     else if (arg == "7" || arg == "mmap") mmap_write();
     else if (arg == "8" || arg == "openwrite") open_write_only();
-    else if (arg == "9" || arg == "symlink") create_symlink();
-    else if (arg == "10" || arg == "hardlink") create_hardlink();
-    else if (arg == "11" || arg == "anonmmap") remote_mmap_rwx_exploit();
-    else if (arg == "12" || arg == "mprotect") remote_mprotect_rwx_exploit();
-    else if (arg == "13" || arg == "omem") overwrite_code_segment();
-    else if (arg == "14" || arg == "ostack") overwrite_stack();
-    else if (arg == "15" || arg == "test") 
-    {
-        mprotect_rwx_and_inject();
-    }
+    // else if (arg == "9" || arg == "symlink") create_symlink();
+    // else if (arg == "10" || arg == "hardlink") create_hardlink();
+    // else if (arg == "11" || arg == "anonmmap") remote_mmap_rwx_exploit();
+    // else if (arg == "12" || arg == "mprotect") remote_mprotect_rwx_exploit();
+    // else if (arg == "13" || arg == "omem") overwrite_code_segment();
+    // else if (arg == "14" || arg == "ostack") overwrite_stack();
+    // else if (arg == "15" || arg == "test") 
+    // {
+    //     mprotect_rwx_and_inject();
+    // }
     else {
         std::cerr << "Unknown test case: " << arg << "\n";
         return 1;
