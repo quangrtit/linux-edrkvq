@@ -173,8 +173,6 @@ int xdp_ioc_block(struct xdp_md *ctx)
 {
     struct net_payload np = {};
     np.status = ALLOW;
-
-    // parse L3/L4
     void *data_end = (void *)(long)ctx->data_end;
     void *data     = (void *)(long)ctx->data;
     struct ethhdr *eth = data;
@@ -182,21 +180,13 @@ int xdp_ioc_block(struct xdp_md *ctx)
         return XDP_PASS;
 
     __u16 h_proto = bpf_ntohs(eth->h_proto);
-
     struct ip_lpm_key lpm_key = {};
-
     if (h_proto == ETH_P_IP) {
         struct iphdr *ip4 = (void *)(eth + 1);
         if ((void *)(ip4 + 1) > data_end) return XDP_PASS;
-
         lpm_key.prefixlen = 32;
         __u32 ip_be = ip4->saddr; 
-        // bpf_printk("XDP this is IPv4 %u.%u.%u.%u",
-        // (ip_be >> 24) & 0xFF, (ip_be >> 16) & 0xFF, (ip_be >> 8) & 0xFF, ip_be & 0xFF);                  
-        // __builtin_memset(lpm_key.data, 0, 16);
         __builtin_memcpy(lpm_key.data, &ip_be, 4);  
-        // __builtin_memcpy(lpm_key.data, &ip4->saddr, 4);
-
         np.family   = AF_INET;
         np.daddr_v4 = ip4->saddr;
         np.protocol = ip4->protocol;
@@ -217,14 +207,11 @@ int xdp_ioc_block(struct xdp_md *ctx)
     else if (h_proto == ETH_P_IPV6) {
         struct ipv6hdr *ip6 = (void *)(eth + 1);
         if ((void *)(ip6 + 1) > data_end) return XDP_PASS;
-
         lpm_key.prefixlen = 128;
         __builtin_memcpy(lpm_key.data, &ip6->saddr, 16);
-
         np.family   = AF_INET6;
         __builtin_memcpy(np.daddr_v6, &ip6->saddr, 16);
         np.protocol = ip6->nexthdr;
-
         void *l4 = (void *)(ip6 + 1);
         if (l4 <= data_end) {
             if (ip6->nexthdr == IPPROTO_TCP) {
@@ -244,7 +231,6 @@ int xdp_ioc_block(struct xdp_md *ctx)
     enum ip_status *ip_pass = bpf_map_lookup_elem(&block_list_ip, &lpm_key);
     if (ip_pass) {
         if ((*ip_pass) == ALLOW) {
-            // bpf_printk("fast allow packet\n");
             return XDP_PASS;
         }
     }
@@ -262,7 +248,6 @@ int xdp_ioc_block(struct xdp_md *ctx)
         // bpf_printk("insert new ip\n");
         bpf_map_update_elem(&block_list_ip, &lpm_key, &np.status, BPF_ANY);
     }
-
     return XDP_PASS;
 }
 

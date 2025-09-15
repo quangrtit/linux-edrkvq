@@ -85,7 +85,7 @@
       "block_hardlink_create": true
     },
     {
-      "path": "/var/lib/SentinelEDR/data.mdb",
+      "path": "/var/lib/SentinelEDR/IOC_DB/data.mdb",
       "inode": -1,
       "inode_symlink": -1,
       "block_read": false,

@@ -60,12 +60,10 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
         malicious = cache_inode_policy_map.count(file_key) > 0;
     }
     if(!malicious) {
-        std::string hash_check = calculate_sha256_fast(real_path);
-        if(hash_check == "e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98") std::cerr << "have one file exe: " << hash_check << "\n";
-        // fprintf(stderr, "true true '%s': %s\n", hash_check.c_str(), strerror(errno));   
+        std::string hash_check = calculate_sha256_fast(real_path);   
         // check malicious
         IOCMeta result;
-        malicious = ioc_db.get_file_hash(hash_check, result); // memory load ????
+        malicious = ioc_db.get_file_hash(hash_check, result); 
         if(malicious) { // cache malicious
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> elapsed = end - start;        
@@ -109,7 +107,7 @@ bool ExecutableIOCBlocker::remove_mount(const std::string &path) {
         perror("fanotify_mark remove");
         return false;
     }
-    std::cout << "[+] Remove mount: " << path << "\n";
+    // std::cout << "[+] Remove mount: " << path << "\n";
     return true;
 }
 void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
@@ -203,46 +201,6 @@ void ExecutableIOCBlocker::loop() {
                 
                 if (r > 0) {
                     real_path[r] = '\0';
-                    
-   
-                    // if (strstr(real_path, "ld-linux") != NULL || 
-                    //     strstr(real_path, "ld.so") != NULL ||
-                    //     strcmp(real_path, "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2") == 0) {
-                  
-                    //     write(fan_fd, &response, sizeof(response));
-                    //     close(metadata->fd);
-                    //     continue;
-                    // }
-                    
-           
-                    // if (strncmp(real_path, "/usr/lib/", 9) == 0 ||
-                    //     strncmp(real_path, "/lib/", 5) == 0 ||
-                    //     strncmp(real_path, "/lib64/", 7) == 0 ||
-                    //     strncmp(real_path, "/usr/libexec/", 13) == 0 ||
-                    //     strncmp(real_path, "/proc/", 6) == 0 ||
-                    //     strncmp(real_path, "/sys/", 5) == 0) {
-              
-                    //     write(fan_fd, &response, sizeof(response));
-                    //     close(metadata->fd);
-                    //     continue;
-                    // }
-                    
-                    // if (strcmp(real_path, "/bin/bash") == 0 ||
-                    //     strcmp(real_path, "/usr/bin/bash") == 0 ||
-                    //     strcmp(real_path, "/bin/sh") == 0 ||
-                    //     strcmp(real_path, "/usr/bin/sh") == 0 ||
-                    //     strcmp(real_path, "/bin/dash") == 0) {
-                     
-                    //     write(fan_fd, &response, sizeof(response));
-                    //     close(metadata->fd);
-                    //     continue;
-                    // }
-                    
-               
-                    // printf("/-----------------------/\n");
-                    // printf("Checking executable: %s\n", real_path);
-                    
-              
                     try {
                         bool malicious = check_exe_malicious(real_path, ioc_db);
                         
@@ -254,18 +212,14 @@ void ExecutableIOCBlocker::loop() {
                             response.response = FAN_ALLOW;
                         }
                     } catch (const std::exception& e) {
-            
                         fprintf(stderr, "Error checking file %s: %s\n", real_path, e.what());
                         response.response = FAN_ALLOW;
                     }
-                    // printf("/-----------------------/\n");
                 } 
                 else {
             
                     response.response = FAN_ALLOW;
                 }
-                
-                
                 if (write(fan_fd, &response, sizeof(response)) < 0) {
                     perror("Failed to send fanotify response");
                 }

@@ -208,6 +208,42 @@ int BPF_PROG(protect_read_write_secret_file, struct file *file, int mask) {
     return 0;
 }
 
+SEC("lsm/inode_permission")
+int BPF_PROG(protect_inode_actions, struct inode *inode, int mask)
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    __u32 pid = bpf_get_current_pid_tgid() >> 32;
+    __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
+    if (flag && *flag == 1) {
+        return 0;  
+    }
+    if (!inode) {
+        return 0;
+    }
+
+    struct file_policy_value *policy = NULL;
+    __u64 ino = BPF_CORE_READ(inode, i_ino);
+    struct super_block *sb = BPF_CORE_READ(inode, i_sb);
+    if (!sb)
+        return 0;
+    dev_t dev = BPF_CORE_READ(sb, s_dev);
+    __u64 key = ((__u64)dev << 32) | (__u64)ino;
+    policy = bpf_map_lookup_elem(&file_protection_policy, &key);
+
+    // for write
+    if ((mask & MAY_WRITE) && policy && policy->block_write) {
+        bpf_printk("BLOCK_ACTION, [kernel space inode_permission] Write access denied");
+        send_debug_log(BLOCKED_ACTION, "[kernel space inode_permission] Write access denied");
+        return -EACCES;
+    }
+    // for read 
+    if (mask & MAY_READ && policy && policy->block_read) {
+        bpf_printk("BLOCK_ACTION, [kernel space inode_permission] Read access denied");
+        send_debug_log(BLOCKED_ACTION, "[kernel space inode_permission] Read access denied");
+        return -EACCES;
+    }
+    return 0;
+}
 // for move and rename file 
 SEC("lsm/inode_rename")
 int BPF_PROG(protect_rename_move_file,

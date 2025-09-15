@@ -135,6 +135,7 @@ static int handle_ioc_event(void *ctx, void *data, size_t data_sz) {
             printf("Command='%s'\n", evt->cmd.cmd);
             break;
         case IOC_EVT_MOUNT_EVENT: 
+            break;
             printf("[MOUNT_EVENT] action=%s dev=%s fs=%s mnt=%s\n",
                 evt->mnt.action == MOUNT_ADD ? "MOUNT_ADD" : "MOUNT_REMOVE",
                 evt->mnt.dev_name,
@@ -178,7 +179,7 @@ void* socket_thread(void* arg) {
     char buffer[BUFFER_SIZE] = {0};
     int opt = 1;
     // printf("Computer%s", get_local_ip());
-    printf("[Server Thread] Starting to listen for incoming data...\n");
+    // printf("[Server Thread] Starting to listen for incoming data...\n");
     char* SERVER_IP = get_local_ip();
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("[Server Thread] socket failed");
@@ -274,7 +275,7 @@ int main() {
     }
     std::string ioc_db_path;
     DEFAULT_POLICY_FILE_PATH == "/var/lib/SentinelEDR/self_defense_policy.json" ? ioc_db_path = "/var/lib/SentinelEDR/IOC_DB" : ioc_db_path = "IOC_DB";
-    std::cerr << "IOC FOLDER PATH: " << ioc_db_path << " default policy file path: " << DEFAULT_POLICY_FILE_PATH << std::endl;
+    // std::cerr << "IOC FOLDER PATH: " << ioc_db_path << " default policy file path: " << DEFAULT_POLICY_FILE_PATH << std::endl;
     // ioc_db_path = "/var/lib/SentinelEDR/IOC_DB/IOC_DB";
     IOCDatabase ioc_db(ioc_db_path);
     // update_database(ioc_db);
@@ -284,8 +285,8 @@ int main() {
     // std::cout << "hash file: " << hash << std::endl;
     // ioc_db.add_file_hash(hash, IOCMeta());
     IOCMeta result;
-    if(ioc_db.get_file_hash("e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98", result)) {std::cout << "fuck...\n";}
-    else {std::cout << "no fuck\n";}
+    // if(ioc_db.get_file_hash("e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98", result)) {std::cout << "fuck...\n";}
+    // else {std::cout << "no fuck\n";}
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }

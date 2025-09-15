@@ -1,0 +1,4 @@
+
+echo "Nội dung test" | sudo tee self_defense_policy.json
+sudo mv self_defense_policy.json self_defense_policy_renamed.json
+sudo truncate -s 0 self_defense_policy.json
