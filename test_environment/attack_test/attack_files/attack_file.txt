@@ -1,4 +1,38 @@
+1. Test bảo vệ file phụ thuộc trên đĩa
+    ghi đè: 
+        echo "Nội dung test" | sudo tee self_defense_policy.json
+    di chuyển, đổi tên: 
+        sudo mv self_defense_policy.json self_defense_policy_renamed.json
+    truncate: 
+        sudo truncate -s 0 self_defense_policy.json
+    xóa: 
+        sudo rm -rf self_defense_policy.json
+    mmap: 
+    sudo python3 - <<'PY'
+    import os, mmap, sys
+    path = "self_defense_policy.json"
+    data = b'{"policy":"this is a test"}'   # chỉnh nội dung ở đây (byte string)
 
-echo "Nội dung test" | sudo tee self_defense_policy.json
-sudo mv self_defense_policy.json self_defense_policy_renamed.json
-sudo truncate -s 0 self_defense_policy.json
+    # Mở (hoặc tạo) file với chế độ read/write
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        os.ftruncate(fd, len(data))             # đặt kích thước file bằng kích thước dữ liệu
+        with os.fdopen(fd, "r+b") as f:
+            mm = mmap.mmap(f.fileno(), len(data), access=mmap.ACCESS_WRITE)
+            try:
+                mm[:] = data                    # ghi toàn bộ bytes vào mmap
+                mm.flush()                      # persist vào đĩa
+            finally:
+                mm.close()
+        print(f"Wrote {len(data)} bytes to {path}")
+    except Exception as e:
+        try:
+            os.close(fd)
+        except Exception:
+            pass
+        print("Error:", e, file=sys.stderr)
+        sys.exit(1)
+    PY
+2. Bảo vệ tiến trình mục tiêu 
+    Kết trúc tiến trình: 
+    
