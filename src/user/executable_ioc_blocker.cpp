@@ -59,6 +59,11 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
         std::lock_guard<std::mutex> lock(cache_inode_policy_map_mutex);
         malicious = cache_inode_policy_map.count(file_key) > 0;
     }
+    __u64 file_size = get_file_size(real_path);
+    if (file_size == 0 || file_size > LIMIT_FILE_SIZE) {
+        std::cerr << "File size is zero or exceeds limit: " << real_path << "\n";
+        return false; 
+    }
     if(!malicious) {
         std::string hash_check = calculate_sha256_fast(real_path);   
         // check malicious
@@ -73,7 +78,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    // printf("Time to hash file %s : %.3f ms\n", real_path, elapsed.count());
+    printf("Time to hash file %s with size %.3f MB: %.3f ms\n", real_path, file_size / (1024.0 * 1024.0), elapsed.count());
     return malicious;
 }
 bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& mount_info) {

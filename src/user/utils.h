@@ -29,4 +29,6 @@ std::vector<unsigned int> get_all_default_ifindexes();
 
 std::string get_binary_dir();
 
+__u64 get_file_size(const char *filename);
+
 #endif // __UTILS_H
