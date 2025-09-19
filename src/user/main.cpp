@@ -168,11 +168,26 @@ void *ioc_block_thread(void *arg) {
 }
 
 static void sig_handler(int sig) {
-    exiting = 1;
+    // exiting = 1;
     printf("[Signal Handler] Received signal %d but ignoring.\n", sig);
 }
 
+struct thread_args {
+    IOCDatabase *db;
+    
+    struct self_defense_bpf *skel_self_defense;
+    struct ioc_block_bpf *skel_ioc_block;
+};
 void* socket_thread(void* arg) {
+    struct thread_args *args = (struct thread_args *)arg;
+    IOCDatabase *db = args->db;
+    struct self_defense_bpf *skel_self_defense = args->skel_self_defense;
+    struct ioc_block_bpf *skel_ioc_block = args->skel_ioc_block;
+    struct ring_buffer *rb_self_defense = NULL;
+    struct ring_buffer *rb_ioc_block = NULL;
+
+
+    std::cerr << "Socket thread started, IOC DB path: " << db->env << std::endl;
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
@@ -244,6 +259,86 @@ void* socket_thread(void* arg) {
                     server_stop = 1;
                     exit_code = 0;
                     break;
+                }
+                // data receive format: "add_file_hash <hash_value>"
+                else if (strncmp(buffer, "add_file_hash ", 14) == 0) {
+                    std::string hash_value = std::string(buffer + 14);
+                    IOCMeta meta;
+                    // meta.first_seen = current_time_ns();
+                    // meta.last_seen = meta.first_seen;
+                    // meta.source = client_ip;
+                    db->add_file_hash(hash_value, meta);
+                    printf("[Server Thread] Added file hash: %s\n", hash_value.c_str());
+                }
+                // data receive format: "add_ip <ip_address>"
+                else if (strncmp(buffer, "add_ip ", 7) == 0) {
+                    std::string test_ip = std::string(buffer + 7);
+                    IOCMeta meta;
+                    db->add_ip(test_ip, meta);
+                    printf("[Server Thread] Added IP: %s\n", test_ip.c_str());
+                    struct ip_lpm_key lpm_key = {};
+                    __u32 verdict = 1; // block
+
+                    if (test_ip.find(':') != std::string::npos) {
+                        // IPv6
+                        lpm_key.prefixlen = 128;
+                        if (inet_pton(AF_INET6, test_ip.c_str(), lpm_key.data) != 1) {
+                            fprintf(stderr, "Invalid IPv6: %s\n", test_ip.c_str());
+                        }
+                    } else {
+                        // IPv4
+                        lpm_key.prefixlen = 32;
+                        if (inet_pton(AF_INET, test_ip.c_str(), lpm_key.data) != 1) {
+                            fprintf(stderr, "Invalid IPv4: %s\n", test_ip.c_str());
+                        }
+                    }
+
+                    if (bpf_map__update_elem(skel_ioc_block->maps.ioc_ip_map,
+                                            &lpm_key, sizeof(lpm_key),
+                                            &verdict, sizeof(verdict),
+                                            BPF_ANY) != 0) {
+                        perror("bpf_map__update_elem failed");
+                    }
+                }
+                // data receive format: "delete_file_hash <hash_value>"
+                else if (strncmp(buffer, "delete_file_hash ", 17) == 0) {
+                    std::string hash_value = std::string(buffer + 17);
+                    if(db->delete_file_hash(hash_value)) {
+                        printf("[Server Thread] Deleted file hash: %s\n", hash_value.c_str());
+                    } else {
+                        printf("[Server Thread] File hash not found: %s\n", hash_value.c_str());
+                    }
+                }
+                // data receive format: "delete_ip <ip_address>"
+                else if (strncmp(buffer, "delete_ip ", 10) == 0) {
+                    std::string test_ip = std::string(buffer + 10);
+                    if (db->delete_ip(test_ip)) {
+                        printf("[Server Thread] Deleted IP: %s\n", test_ip.c_str());
+
+                        struct ip_lpm_key lpm_key = {};
+
+                        if (test_ip.find(':') != std::string::npos) {
+                            // IPv6
+                            lpm_key.prefixlen = 128;
+                            if (inet_pton(AF_INET6, test_ip.c_str(), lpm_key.data) != 1) {
+                                fprintf(stderr, "Invalid IPv6: %s\n", test_ip.c_str());
+                            }
+                        } else {
+                            // IPv4
+                            lpm_key.prefixlen = 32;
+                            if (inet_pton(AF_INET, test_ip.c_str(), lpm_key.data) != 1) {
+                                fprintf(stderr, "Invalid IPv4: %s\n", test_ip.c_str());
+                            }
+                        }
+
+                        if (bpf_map__delete_elem(skel_ioc_block->maps.ioc_ip_map,
+                            &lpm_key, sizeof(lpm_key), 0) != 0) {
+                            perror("bpf_map__delete_elem failed");
+                        }
+
+                    } else {
+                        printf("[Server Thread] IP not found: %s\n", test_ip.c_str());
+                    }
                 }
             }
             
@@ -326,6 +421,7 @@ int main() {
     struct ioc_block_bpf *skel_ioc_block;
     struct ring_buffer *rb_self_defense = NULL;
     struct ring_buffer *rb_ioc_block = NULL;
+    struct thread_args args;
     int err_all;
     std::vector<unsigned int> all_val;
     signal(SIGINT, sig_handler);
@@ -375,8 +471,12 @@ int main() {
     }
 
     printf("PID: %d, Name: %s [user space main.c] Watching for file deletes... Ctrl+C to stop.\n", pid, process_name);
-
-    if (pthread_create(&network_thread_id, NULL, socket_thread, NULL) != 0) {
+    args = {
+        .db = &ioc_db,
+        .skel_self_defense = skel_self_defense,
+        .skel_ioc_block = skel_ioc_block
+    };
+    if (pthread_create(&network_thread_id, NULL, socket_thread, &args) != 0) {
         fprintf(stderr, "Failed to create socket thread.\n");
     }
     if (pthread_create(&self_defense_id, NULL, self_defense_thread, rb_self_defense) != 0) {

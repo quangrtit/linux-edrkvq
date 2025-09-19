@@ -102,10 +102,8 @@ int apply_file_policy(struct self_defense_bpf *skel, const char *path, struct fi
 
 int apply_process_policy(struct self_defense_bpf *skel, __u32 pid, const struct process_policy_value *value)
 {
-    // std::cout << "1.12.2.2.2.2.2.2..2.2.2.2..2.2.2.2.2..2.2..2.2..233..3..3\n";
     // temporarily protects only the current process itself
     pid = (__u32)getpid(); 
-    // std::cout << "yes: " << pid << "\n";
     int err = bpf_map__update_elem(skel->maps.process_protection_policy, &pid, sizeof(pid), (void *)value, sizeof(*value), BPF_ANY);
     if (err) {
         fprintf(stderr, "[user space policy_manager.cpp] Failed to apply process policy for PID %u: %s\n", pid, strerror(errno));
@@ -305,9 +303,6 @@ int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf*
     }
 
     // FILE *fx = fopen("/home/quang/myLib/vcs-ajiant-edr/test_environment/attack_test/test_file_vcs1.txt", "w");
-    // if(!fx) {
-    //     perror("fuck ???? \n");
-    // }
     char *updated_json = cJSON_Print(root);
     fp = fopen(json_filepath, "w");
     if (!fp) {

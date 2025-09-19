@@ -78,7 +78,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    printf("Time to hash file %s with size %.3f MB: %.3f ms\n", real_path, file_size / (1024.0 * 1024.0), elapsed.count());
+    // printf("Time to hash file %s with size %.3f MB: %.3f ms\n", real_path, file_size / (1024.0 * 1024.0), elapsed.count());
     return malicious;
 }
 bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& mount_info) {

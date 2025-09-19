@@ -36,3 +36,13 @@
 2. Bảo vệ tiến trình mục tiêu 
     Kết trúc tiến trình: 
     
+3. IOC Block: 
+    echo -n "add_ip 8.8.8.8" | nc 192.168.159.128 8080
+    echo -n "delete_ip 8.8.8.8" | nc 192.168.159.128 8080
+
+spam r_q: 
+    sudo apt install python3-venv -y
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install aiohttp
+    deactivate
