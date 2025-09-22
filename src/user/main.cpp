@@ -168,7 +168,7 @@ void *ioc_block_thread(void *arg) {
 }
 
 static void sig_handler(int sig) {
-    // exiting = 1;
+    exiting = 1;
     printf("[Signal Handler] Received signal %d but ignoring.\n", sig);
 }
 
@@ -377,11 +377,9 @@ int main() {
     // ioc_db.dump_database_info();
     
     // std::string hash = calculate_sha256_fast("main_test_block_exe");
-    // std::cout << "hash file: " << hash << std::endl;
+    // std::cerr << "hash file: " << hash << std::endl;
     // ioc_db.add_file_hash(hash, IOCMeta());
     IOCMeta result;
-    // if(ioc_db.get_file_hash("e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98", result)) {std::cout << "fuck...\n";}
-    // else {std::cout << "no fuck\n";}
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }
@@ -397,10 +395,10 @@ int main() {
     //     while (mdb_cursor_get(cursor, &key, &data, MDB_NEXT) == 0) {
     //         std::string k((char*)key.mv_data, key.mv_size);
     //         std::string v((char*)data.mv_data, data.mv_size);
-    //         // std::cout << "Key: " << k << "\n";
+    //         // std::cerr << "Key: " << k << "\n";
     //         IOCMeta meta = IOCMeta::deserialize(v);
     //         cnt += 1;
-    //         // std::cout << "  First Seen: " << meta.first_seen
+    //         // std::cerr << "  First Seen: " << meta.first_seen
     //         //           << ", Last Seen: " << meta.last_seen
     //         //           << ", Source: " << meta.source << "\n";
     //     }
@@ -409,8 +407,8 @@ int main() {
     // mdb_txn_abort(txn);
     // auto end = std::chrono::high_resolution_clock::now();
     // std::chrono::duration<double, std::milli> elapsed = end - start;
-    // std::cout << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
-    // std::cout << "this is database path: " << IOC_DB_PATH << std::endl;
+    // std::cerr << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
+    // std::cerr << "this is database path: " << IOC_DB_PATH << std::endl;
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;

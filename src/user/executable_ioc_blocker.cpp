@@ -9,21 +9,33 @@ ExecutableIOCBlocker::~ExecutableIOCBlocker() {
     stop();
 }
 
-void ExecutableIOCBlocker::add_policy(const std::string &path) {
-    __u64 key = get_inode_key(path.c_str());
-    if (key != 0) {
+// void ExecutableIOCBlocker::add_policy(const std::string &path) {
+//     __u64 key = get_inode_key(path.c_str());
+//     if (key != 0) {
+//         {
+//             std::lock_guard<std::mutex> lock(cache_inode_policy_map_not_malicious_mutex);
+//             cache_inode_policy_map_not_malicious[key] = true;
+//         }
+//
+//     }
+// }
+void ExecutableIOCBlocker::add_policy(const __u64 &inode, __u64 ctime_sec, __u64 ctime_nsec) {
+    if (inode != 0) {
         {
-            std::lock_guard<std::mutex> lock(cache_inode_policy_map_mutex);
-            cache_inode_policy_map[key] = true;
+            std::lock_guard<std::mutex> lock(cache_inode_policy_map_not_malicious_mutex);
+            cache_inode_policy_map_not_malicious[inode] = std::pair<__u64,__u64>(ctime_sec, ctime_nsec);
         }
         
     }
 }
-void ExecutableIOCBlocker::add_policy(const __u64 &inode) {
+void ExecutableIOCBlocker::remove_policy(const __u64 &inode) {
     if (inode != 0) {
         {
-            std::lock_guard<std::mutex> lock(cache_inode_policy_map_mutex);
-            cache_inode_policy_map[inode] = true;
+            std::lock_guard<std::mutex> lock(cache_inode_policy_map_not_malicious_mutex);
+            auto it = cache_inode_policy_map_not_malicious.find(inode);
+            if(it != cache_inode_policy_map_not_malicious.end()) {
+                cache_inode_policy_map_not_malicious.erase(it);
+            }
         }
         
     }
@@ -55,10 +67,29 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
     auto start = std::chrono::high_resolution_clock::now();
     bool malicious;
     __u64 file_key = get_inode_key(real_path);
+    // check cache file not malicious
     {
-        std::lock_guard<std::mutex> lock(cache_inode_policy_map_mutex);
-        malicious = cache_inode_policy_map.count(file_key) > 0;
+        std::lock_guard<std::mutex> lock(cache_inode_policy_map_not_malicious_mutex);
+        if(cache_inode_policy_map_not_malicious.count(file_key) <= 0) {
+            malicious = false;
+        }
+        else {
+            auto it = cache_inode_policy_map_not_malicious.find(file_key);
+            if(it != cache_inode_policy_map_not_malicious.end()) {
+                __u64 ctime_sec = it->second.first;
+                __u64 ctime_nsec = it->second.second;
+                // std::cerr << "have: " << real_path << " " << ctime_sec << " " << ctime_nsec << "\n";
+                struct stat st;
+                if (stat(real_path, &st) == 0) {
+                    if(st.st_ctim.tv_sec == ctime_sec && st.st_ctim.tv_nsec == ctime_nsec) {
+                        std::cerr << "File not changed, skip hash check: " << real_path << "\n";
+                        return false; // file not change, not malicious
+                    }
+                }
+            }
+        }
     }
+    // check file size before hash
     __u64 file_size = get_file_size(real_path);
     if (file_size == 0 || file_size > LIMIT_FILE_SIZE) {
         std::cerr << "File size is zero or exceeds limit: " << real_path << "\n";
@@ -73,7 +104,17 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> elapsed = end - start;        
             printf("malicious file: %s and time to hash file: %.3f ms\n", real_path, elapsed.count());
-            add_policy(file_key);
+            // get ctime_sec and ctime_nsec
+            
+        }
+        else {
+            struct stat st;
+            if (stat(real_path, &st) == 0) {
+                __u64 ctime_sec = st.st_ctim.tv_sec;
+                __u64 ctime_nsec = st.st_ctim.tv_nsec;
+                // std::cerr << "add key: " << real_path << " " << ctime_sec << " " << ctime_nsec << "\n";
+                add_policy(file_key, ctime_sec, ctime_nsec);
+            }
         }
     }
     auto end = std::chrono::high_resolution_clock::now();
@@ -92,7 +133,7 @@ bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& m
         return false;
     }
     mount_cache[path] = mount_info;
-    // std::cout << "[+] Add mount: " << path << "\n";
+    // std::cerr << "[+] Add mount: " << path << "\n";
     return true;
 }
 bool ExecutableIOCBlocker::remove_mount(const std::string &path) {
@@ -112,7 +153,7 @@ bool ExecutableIOCBlocker::remove_mount(const std::string &path) {
         perror("fanotify_mark remove");
         return false;
     }
-    // std::cout << "[+] Remove mount: " << path << "\n";
+    // std::cerr << "[+] Remove mount: " << path << "\n";
     return true;
 }
 void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
@@ -147,7 +188,7 @@ void ExecutableIOCBlocker::enumerate_mounts_and_mark() {
         add_mount(mount_point, mount_info);
     }
     // for(auto path: mount_cache) {
-    //     std::cout << "mountpoint: " << path.first << std::endl;
+    //     std::cerr << "mountpoint: " << path.first << std::endl;
     // }
 }
 // static bool is_system_critical_file(const char* path) {
@@ -207,8 +248,8 @@ void ExecutableIOCBlocker::loop() {
                 if (r > 0) {
                     real_path[r] = '\0';
                     try {
-                        bool malicious = check_exe_malicious(real_path, ioc_db);
-                        
+                        // bool malicious = check_exe_malicious(real_path, ioc_db);
+                        bool malicious = check_with_timeout(real_path, ioc_db, TIME_OUT_CHECK_FILE_MS);
                         if (malicious) {
                             printf("BLOCKED malicious file: %s\n", real_path);
                             response.response = FAN_DENY;
@@ -232,5 +273,17 @@ void ExecutableIOCBlocker::loop() {
                 close(metadata->fd);
             }
         }
+    }
+}
+bool ExecutableIOCBlocker::check_with_timeout(const char* real_path, IOCDatabase& db, int timeout_ms) {
+    auto fut = std::async(std::launch::async, [&]() {
+        return check_exe_malicious(real_path, db);
+    });
+
+    if (fut.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::ready) {
+        return fut.get();
+    } else {
+        fprintf(stderr, "[Timeout] Checking %s took too long, default ALLOW\n", real_path);
+        return false; 
     }
 }

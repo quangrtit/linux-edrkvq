@@ -35,6 +35,7 @@
 #include <bpf/libbpf.h>
 #include <algorithm>
 #include <libgen.h>
+#include <future>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128
@@ -50,6 +51,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_IFACES 16
 #define LIMIT_FILE_SIZE ((__u64)650 * 1024 * 1024)
+#define TIME_OUT_CHECK_FILE_MS 200 // 200ms
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
 
 // #ifndef DEFAULT_POLICY_FILE_PATH
@@ -75,7 +77,6 @@
 #define FILE_TEST_BLOCK_EXE "main_test_block_exe"
 
 #define PATH_LOG_ERROR "/home/quang/myLib/vcs-ajiant-edr/build/log.txt" 
-
 
 enum log_level {
     INFO,

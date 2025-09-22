@@ -17,6 +17,7 @@ __u64 get_inode_key(const char* path);
 std::string calculate_sha256_fast(const char* file_path);
 
 bool is_elf_fd(int fd);
+
 bool is_executable_fd(int fd);
 
 bool load_ioc_ip_into_kernel_map(struct ioc_block_bpf *skel, IOCDatabase &ioc_db);
@@ -31,4 +32,5 @@ std::string get_binary_dir();
 
 __u64 get_file_size(const char *filename);
 
+__u64 get_file_identifier(const char *filename);
 #endif // __UTILS_H

@@ -101,6 +101,7 @@ enum ioc_event_type {
     IOC_EVT_CONNECT_IP,      // IP Connection
     IOC_EVT_CMD_CONTROL,     // Receive control command
     IOC_EVT_MOUNT_EVENT,
+    IOC_EVT_FILE_CHANGE,   // File change event
 };
 // Payload for IOC_EXEC_FILE
 struct exec_payload {
@@ -146,6 +147,22 @@ struct ip_lpm_key {
 struct cmd_payload {
     char cmd[NAME_MAX];        
 };
+// Payload for IOC_FILE_CHANGE
+enum file_change_type {
+    FILE_CHANGE_WRITE = 1,
+    FILE_CHANGE_TRUNCATE_CREATE,
+    FILE_CHANGE_UNLINK,
+    FILE_CHANGE_RENAME,
+    FILE_CHANGE_MOVE,
+    FILE_CHANGE_CHMOD,
+    FILE_CHANGE_SYMLINK_CREATE,
+    FILE_CHANGE_HARDLINK_CREATE
+};
+struct file_change_payload {
+    char file_name[MAX_PATH_LEN];
+    __u64 inode_id;
+    __u8  file_change_type; // 1: write, 2: truncate/create, 3: unlink, 4: rename, 5: move, 6: chmod, 7: symlink_create, 8: hardlink_create
+};
 // Event sent from kernel to user
 struct ioc_event {
     __u64 timestamp_ns;       // Time of occurrence
@@ -163,6 +180,8 @@ struct ioc_event {
         
         struct net_payload net;
         struct cmd_payload cmd;
+
+        struct file_change_payload file_change;
     };
 };
 

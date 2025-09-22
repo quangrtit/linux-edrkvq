@@ -100,6 +100,12 @@ static __always_inline void send_ioc_event(enum ioc_event_type type, void *data)
         // bpf_printk("debug mount event: %s\n", p->mnt_point);
         // bpf_printk("debug mount event second: %s\n", evt->mnt.mnt_point);
     }
+    else if(type == IOC_EVT_FILE_CHANGE) {
+        const struct file_change_payload *p = data;
+        bpf_probe_read_kernel_str(evt->file_change.file_name, sizeof(evt->file_change.file_name), p->file_name);
+        evt->file_change.inode_id = p->inode_id;
+        evt->file_change.file_change_type = p->file_change_type;
+    }
     bpf_ringbuf_submit(evt, 0);
 }
 
@@ -319,3 +325,10 @@ int BPF_PROG(bprm_creds_from_file, struct linux_binprm *bprm, struct file *file,
     }
     return 0;
 }
+SEC("kprobe/vfs_write")
+int kprobe__vfs_write(struct pt_regs *ctx)
+{
+    bpf_printk("vfs_write debug\n");
+    return 0;
+}
+

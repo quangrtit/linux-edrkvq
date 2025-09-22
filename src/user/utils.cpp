@@ -299,7 +299,7 @@ std::vector<unsigned int> get_all_default_ifindexes() {
 
         if (has_default_route4(ifa->ifa_name) || has_default_route6(ifa->ifa_name)) {
             res.push_back(idx);
-            std::cout << "Found default route on " << ifa->ifa_name
+            std::cerr << "Found default route on " << ifa->ifa_name
                       << " (ifindex=" << idx << ")\n";
         }
     }
@@ -319,6 +319,17 @@ __u64 get_file_size(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == 0) {
         return st.st_size;  
+    }
+    return 0; 
+}
+
+__u64 get_file_identifier(const char *filename) {
+    struct stat st;
+    if (stat(filename, &st) == 0) {
+        unsigned int user_major = major(st.st_dev);
+        unsigned int user_minor = minor(st.st_dev);
+        __u64 kernel_dev = KERNEL_MKDEV(user_major, user_minor);
+        return (kernel_dev << 32) | (__u64)st.st_ino;
     }
     return 0; 
 }

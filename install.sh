@@ -1,23 +1,40 @@
 #!/bin/bash
-set -e
+# # file thử
+# f=main_test_block_exe
 
-DEB_FILE="SentinelEDR-1.0.0-linux-x86_64.deb"
+# # show initial times (human + epoch)
+# echo "=== BEFORE ==="
+# stat -c "mtime: %y\nmtime_epoch: %Y\nctime: %z\nctime_epoch: %Z\nsize: %s\n" "$f"
 
-# Đảm bảo file .deb tồn tại
-if [ ! -f "$DEB_FILE" ]; then
-    echo "[-] Không tìm thấy gói .deb: $DEB_FILE"
-    exit 1
-fi
+# # thay đổi chỉ metadata: chmod (ví dụ thêm quyền group write)
+# chmod g+w "$f"
 
-echo "[*] Cài đặt SentinelEDR từ $DEB_FILE..."
-sudo dpkg -i "$DEB_FILE"
+# # show after
+# echo "=== AFTER chmod g+w ==="
+# stat -c "mtime: %y\nmtime_epoch: %Y\nctime: %z\nctime_epoch: %Z\nsize: %s\n" "$f"
 
-echo "[*] Reload systemd daemon..."
-sudo systemctl daemon-reexec
-sudo systemctl daemon-reload
+f=main_test_block_exe
 
-echo "[*] Enable và start dịch vụ SentinelEDR..."
-sudo systemctl enable SentinelEDR.service
-sudo systemctl restart SentinelEDR.service
+# lưu mtime gốc (epoch seconds)
+orig_mtime=$(stat -c %Y "$f")
+echo "orig_mtime_epoch=$orig_mtime"
 
-echo "[+] Cài đặt thành công và dịch vụ đã khởi động!"
+# show before
+echo "=== BEFORE ==="
+stat -c "mtime: %y\nmtime_epoch: %Y\nctime: %z\nctime_epoch: %Z\nsize: %s\n" "$f"
+
+# 1) Thay đổi nội dung (ví dụ overwrite 10 bytes ở offset 100)
+# dùng dd để viết 10 byte không thay đổi kích thước file (notrunc)
+printf 'AAAAAAAAAA' | dd of="$f" bs=1 seek=100 conv=notrunc status=none
+
+# show immediately after write
+echo "=== AFTER content-write ==="
+stat -c "mtime: %y\nmtime_epoch: %Y\nctime: %z\nctime_epoch: %Z\nsize: %s\n" "$f"
+
+# 2) Giả sử attacker cố che dấu: restore mtime về giá trị ban đầu
+# touch với epoch seconds: touch -d "@$orig_mtime" file
+touch -d "@$orig_mtime" "$f"
+
+# show after restoring mtime
+echo "=== AFTER restoring mtime (touch) ==="
+stat -c "mtime: %y\nmtime_epoch: %Y\nctime: %z\nctime_epoch: %Z\nsize: %s\n" "$f"
