@@ -50,6 +50,7 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define MAX_IFACES 16
+#define LIMIT_IP_STORE 50000
 #define LIMIT_FILE_SIZE ((__u64)650 * 1024 * 1024)
 #define TIME_OUT_CHECK_FILE_MS 200 // 200ms
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"

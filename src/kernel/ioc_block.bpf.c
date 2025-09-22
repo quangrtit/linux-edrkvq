@@ -29,12 +29,12 @@ struct {
     __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __type(key, struct ip_lpm_key);
     __type(value, enum ip_status);
-    __uint(max_entries, 128);
+    __uint(max_entries, LIMIT_IP_CACHE);
 } block_list_ip SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_LPM_TRIE);
-    __uint(max_entries, 50000);
+    __uint(max_entries, LIMIT_IP_STORE);
     __type(key, struct ip_lpm_key);
     __type(value, enum ip_status);
     __uint(map_flags, BPF_F_NO_PREALLOC);

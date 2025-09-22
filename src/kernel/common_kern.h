@@ -11,8 +11,8 @@
 #define MAX_POLICY_ENTRIES 64
 #define NAME_MAX 255
 #define EPERM 1
-
-
+#define LIMIT_IP_STORE 50000
+#define LIMIT_IP_CACHE 128
 #define MAY_EXEC    0x00000001  
 #define MAY_WRITE   0x00000002  
 #define MAY_READ    0x00000004  
