@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.28)
 project(SentinelEDR LANGUAGES C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -36,6 +36,41 @@ ExternalProject_Add(bpftool
   STEP_TARGETS build
 )
 
+ExternalProject_Add(libcurl
+  PREFIX libcurl
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/curl
+  CMAKE_ARGS
+    -DBUILD_SHARED_LIBS=OFF
+    -DBUILD_STATIC_LIBS=ON
+    -DBUILD_CURL_EXE=OFF
+    -DCURL_DISABLE_LDAP=ON
+    -DCURL_DISABLE_LDAPS=ON
+    -DCURL_DISABLE_IMAP=ON
+    -DCURL_DISABLE_POP3=ON
+    -DCURL_DISABLE_SMTP=ON
+    -DCURL_DISABLE_TELNET=ON
+    -DCURL_DISABLE_DICT=ON
+    -DCURL_DISABLE_FILE=ON
+    -DCURL_DISABLE_TFTP=ON
+    -DCURL_DISABLE_RTSP=ON
+    -DUSE_LIBIDN2=OFF
+    -DUSE_LIBSSH2=OFF
+    -DUSE_NGHTTP2=OFF
+    -DUSE_BROTLI=OFF
+    -DUSE_LIBPSL=OFF
+  BUILD_IN_SOURCE OFF
+  INSTALL_COMMAND ""
+)
+ExternalProject_Get_Property(libcurl source_dir binary_dir)
+set(LIBCURL_INCLUDE_DIRS ${source_dir}/include)
+set(LIBCURL_LIBRARIES ${binary_dir}/lib/libcurl.a)
+add_library(libcurl_static STATIC IMPORTED)
+set_target_properties(libcurl_static PROPERTIES
+    IMPORTED_LOCATION ${LIBCURL_LIBRARIES}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBCURL_INCLUDE_DIRS}
+)
+add_dependencies(libcurl_static libcurl)
+
 # Set BpfObject input parameters -- note this is usually not necessary unless
 # you're in a highly vendored environment (like libbpf-bootstrap)
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
@@ -72,6 +107,7 @@ set(USER_SPACE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/executable_ioc_blocker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/user/ioc_database.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user/agent_connection.cpp
 )
 
 set(MAIN_EXECUTABLE_NAME ${CMAKE_PROJECT_NAME})
@@ -92,7 +128,7 @@ endforeach()
 
 add_executable(${MAIN_EXECUTABLE_NAME} ${USER_SPACE_SOURCES})
 # --- OpenSSL static library setup ---
-set(OPENSSL_USE_STATIC_LIBS TRUE)
+# set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
 
 target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
@@ -144,6 +180,10 @@ configure_file("${CMAKE_SOURCE_DIR}/uninstall.sh"
 # test file IOC block exe
 configure_file("${CMAKE_SOURCE_DIR}/test_environment/tmp/main"
                "${CMAKE_BINARY_DIR}/main_test_block_exe"
+               COPYONLY)
+# copy ca.pem 
+configure_file("${CMAKE_SOURCE_DIR}/configs/ca.pem"
+               "${CMAKE_BINARY_DIR}/ca.pem"
                COPYONLY)
 file(COPY "${CMAKE_SOURCE_DIR}/configs/IOC_DB"
      DESTINATION "${CMAKE_BINARY_DIR}")

@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <libgen.h>
 #include <future>
+#include <curl/curl.h>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128

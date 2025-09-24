@@ -27,6 +27,8 @@ extern "C" {
 #include "utils.h"
 #include "executable_ioc_blocker.h"
 #include "ioc_database.h"
+#include "agent_connection.h"
+
 
 static volatile sig_atomic_t exiting = 0;
 static volatile int exit_code = 1;
@@ -409,6 +411,7 @@ int main() {
     // std::chrono::duration<double, std::milli> elapsed = end - start;
     // std::cerr << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
     // std::cerr << "this is database path: " << IOC_DB_PATH << std::endl;
+    AgentConnection agent_conn(&exiting, "192.168.159.130", "ca.pem");
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;
@@ -474,9 +477,10 @@ int main() {
         .skel_self_defense = skel_self_defense,
         .skel_ioc_block = skel_ioc_block
     };
-    if (pthread_create(&network_thread_id, NULL, socket_thread, &args) != 0) {
-        fprintf(stderr, "Failed to create socket thread.\n");
-    }
+    // if (pthread_create(&network_thread_id, NULL, socket_thread, &args) != 0) {
+    //     fprintf(stderr, "Failed to create socket thread.\n");
+    // }
+    // agent_conn.start();
     if (pthread_create(&self_defense_id, NULL, self_defense_thread, rb_self_defense) != 0) {
         fprintf(stderr, "Failed to create self_defense thread.\n");
     }
@@ -503,5 +507,6 @@ cleanup:
     if(skel_ioc_block) {
         ioc_block_bpf__destroy(skel_ioc_block);
     }
+    return 0;
     return exit_code;
 }

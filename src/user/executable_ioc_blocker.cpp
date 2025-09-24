@@ -82,7 +82,7 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
                 struct stat st;
                 if (stat(real_path, &st) == 0) {
                     if(st.st_ctim.tv_sec == ctime_sec && st.st_ctim.tv_nsec == ctime_nsec) {
-                        std::cerr << "File not changed, skip hash check: " << real_path << "\n";
+                        // std::cerr << "File not changed, skip hash check: " << real_path << "\n";
                         return false; // file not change, not malicious
                     }
                 }

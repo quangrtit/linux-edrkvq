@@ -25,11 +25,19 @@ struct {
 //     __type(value, __u8);   // flag (1 = blocked)
 // } blocked_ips SEC(".maps");
 
+// struct {
+//     __uint(type, BPF_MAP_TYPE_LRU_HASH);
+//     __type(key, struct ip_lpm_key);
+//     __type(value, enum ip_status);
+//     __uint(max_entries, LIMIT_IP_CACHE);
+// } block_list_ip SEC(".maps");
+
 struct {
-    __uint(type, BPF_MAP_TYPE_LRU_HASH);
+    __uint(type, BPF_MAP_TYPE_LPM_TRIE);
+    __uint(max_entries, LIMIT_IP_CACHE);
     __type(key, struct ip_lpm_key);
     __type(value, enum ip_status);
-    __uint(max_entries, LIMIT_IP_CACHE);
+    __uint(map_flags, BPF_F_NO_PREALLOC);
 } block_list_ip SEC(".maps");
 
 struct {
@@ -41,10 +49,10 @@ struct {
 } ioc_ip_map SEC(".maps");
 
 struct {
-        __uint(type, BPF_MAP_TYPE_HASH);
-        __uint(max_entries, 5);
-        __type(key, uint32_t);
-        __type(value, uint32_t);
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 5);
+    __type(key, uint32_t);
+    __type(value, uint32_t);
 } filelesslock_args_map SEC(".maps");
 // static function
 static __always_inline void send_ioc_event(enum ioc_event_type type, void *data) {
