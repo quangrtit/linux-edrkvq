@@ -36,40 +36,55 @@ ExternalProject_Add(bpftool
   STEP_TARGETS build
 )
 
+# --- OpenSSL static library setup ---
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL REQUIRED)
+
+find_package(ZLIB REQUIRED)
+
+# Add libcurl as an external project to be built from source
 ExternalProject_Add(libcurl
-  PREFIX libcurl
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/curl
-  CMAKE_ARGS
-    -DBUILD_SHARED_LIBS=OFF
-    -DBUILD_STATIC_LIBS=ON
-    -DBUILD_CURL_EXE=OFF
-    -DCURL_DISABLE_LDAP=ON
-    -DCURL_DISABLE_LDAPS=ON
-    -DCURL_DISABLE_IMAP=ON
-    -DCURL_DISABLE_POP3=ON
-    -DCURL_DISABLE_SMTP=ON
-    -DCURL_DISABLE_TELNET=ON
-    -DCURL_DISABLE_DICT=ON
-    -DCURL_DISABLE_FILE=ON
-    -DCURL_DISABLE_TFTP=ON
-    -DCURL_DISABLE_RTSP=ON
-    -DUSE_LIBIDN2=OFF
-    -DUSE_LIBSSH2=OFF
-    -DUSE_NGHTTP2=OFF
-    -DUSE_BROTLI=OFF
-    -DUSE_LIBPSL=OFF
-  BUILD_IN_SOURCE OFF
-  INSTALL_COMMAND ""
+    PREFIX libcurl
+    URL "https://curl.se/download/curl-8.10.1.tar.gz"
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
+        ${CMAKE_CURRENT_SOURCE_DIR}/libcurl/configure
+        --prefix=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
+        --disable-shared
+        --enable-static
+        --without-libidn2
+        --without-libssh2
+        --without-nghttp2
+        --without-brotli
+        --without-libpsl
+        --disable-ldap
+        --disable-ldaps
+        --disable-imap
+        --disable-pop3
+        --disable-smtp
+        --disable-telnet
+        --disable-dict
+        --disable-file
+        --disable-tftp
+        --disable-rtsp
+        --with-openssl
+        --with-zlib
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libcurl
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libcurl-build
+    BUILD_COMMAND make
+    INSTALL_COMMAND make install
+    BUILD_IN_SOURCE FALSE
 )
-ExternalProject_Get_Property(libcurl source_dir binary_dir)
-set(LIBCURL_INCLUDE_DIRS ${source_dir}/include)
-set(LIBCURL_LIBRARIES ${binary_dir}/lib/libcurl.a)
+
+# Define imported target for libcurl
 add_library(libcurl_static STATIC IMPORTED)
+ExternalProject_Get_Property(libcurl binary_dir source_dir)
 set_target_properties(libcurl_static PROPERTIES
-    IMPORTED_LOCATION ${LIBCURL_LIBRARIES}
-    INTERFACE_INCLUDE_DIRECTORIES ${LIBCURL_INCLUDE_DIRS}
+    IMPORTED_LOCATION "${binary_dir}/lib/libcurl.a"
+    INTERFACE_INCLUDE_DIRECTORIES "${source_dir}/include"
+    INTERFACE_LINK_LIBRARIES "OpenSSL::SSL;OpenSSL::Crypto;ZLIB::ZLIB"
 )
 add_dependencies(libcurl_static libcurl)
+
 
 # Set BpfObject input parameters -- note this is usually not necessary unless
 # you're in a highly vendored environment (like libbpf-bootstrap)
@@ -127,9 +142,6 @@ foreach(app ${apps})
 endforeach()
 
 add_executable(${MAIN_EXECUTABLE_NAME} ${USER_SPACE_SOURCES})
-# --- OpenSSL static library setup ---
-# set(OPENSSL_USE_STATIC_LIBS TRUE)
-find_package(OpenSSL REQUIRED)
 
 target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     ${LIBBPF_LIBRARIES} 
@@ -142,7 +154,8 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     OpenSSL::SSL
     OpenSSL::Crypto
     lmdb        
-    cjson     
+    cjson 
+    libcurl_static    
 )
 # Link the main executable to all generated eBPF skeletons
 foreach(app_item ${apps})
