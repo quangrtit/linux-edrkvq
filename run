@@ -60,4 +60,3 @@ sudo bpftool map show
 journalctl -u SentinelEDR -f
 
 sudo apt-get install libpsl-dev
-sudo tesst
