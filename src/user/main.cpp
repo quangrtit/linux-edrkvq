@@ -411,7 +411,7 @@ int main() {
     // std::chrono::duration<double, std::milli> elapsed = end - start;
     // std::cerr << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
     // std::cerr << "this is database path: " << IOC_DB_PATH << std::endl;
-    AgentConnection agent_conn(&exiting, "192.168.159.130", "ca.pem");
+    AgentConnection agent_conn(&exiting, "https://192.168.159.130:8443/events", "ca.pem");
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;
@@ -425,10 +425,10 @@ int main() {
     struct thread_args args;
     int err_all; 
     std::vector<unsigned int> all_val;
-    // signal(SIGINT, sig_handler);
-    // signal(SIGTERM, sig_handler);
-    // signal(SIGHUP, sig_handler);
-    // signal(SIGQUIT, sig_handler);
+    signal(SIGINT, sig_handler);
+    signal(SIGTERM, sig_handler);
+    signal(SIGHUP, sig_handler);
+    signal(SIGQUIT, sig_handler);
     pid_t pid = getpid();         // Process ID
     pid_t ppid = getppid();       // Parent PID
     char process_name[17] = {0};
@@ -477,10 +477,10 @@ int main() {
         .skel_self_defense = skel_self_defense,
         .skel_ioc_block = skel_ioc_block
     };
-    // if (pthread_create(&network_thread_id, NULL, socket_thread, &args) != 0) {
-    //     fprintf(stderr, "Failed to create socket thread.\n");
-    // }
-    // agent_conn.start();
+    if (pthread_create(&network_thread_id, NULL, socket_thread, &args) != 0) {
+        fprintf(stderr, "Failed to create socket thread.\n");
+    }
+    agent_conn.start();
     if (pthread_create(&self_defense_id, NULL, self_defense_thread, rb_self_defense) != 0) {
         fprintf(stderr, "Failed to create self_defense thread.\n");
     }
@@ -496,6 +496,7 @@ int main() {
     pthread_join(network_thread_id, NULL);
     pthread_join(self_defense_id, NULL);
     pthread_join(ioc_block_id, NULL);
+    agent_conn.stop();
     exe_ioc_blocker.stop();
 cleanup:
     if (rb_self_defense) {

@@ -3,12 +3,17 @@
 
 #include "common_user.h"
 #include "utils.h"
-// #include <curl/curl.h>
+#include <curl/curl.h>
 #include <string>
 #include <thread>
 #include <atomic>
 
 
+
+struct CallbackCtx {
+    std::string buffer;
+    volatile sig_atomic_t* exiting;
+};
 class AgentConnection {
 public: 
     AgentConnection(volatile sig_atomic_t* external_exit, const std::string& server_url, const std::string& ca);
@@ -24,7 +29,7 @@ private:
     static size_t write_callback(void* contents, size_t size, size_t nmemb, void* userp);
 
     // GET request
-    std::string http_get(const std::string& path);
+    // std::string http_get(const std::string& path);
 
     // POST request
     void http_post(const std::string& path, const std::string& data);
