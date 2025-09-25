@@ -60,3 +60,12 @@ sudo bpftool map show
 journalctl -u SentinelEDR -f
 
 sudo apt-get install libpsl-dev
+git submodule add https://github.com/curl/curl.git curl
+git submodule update --init --recursive
+git clone https://github.com/madler/zlib.git
+cd zlib
+cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON .
+make -j$(nproc)
+sudo make install
+
+fsck -y /dev/sda2

@@ -40,50 +40,29 @@ ExternalProject_Add(bpftool
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
 
+set(ZLIB_USE_STATIC_LIBS TRUE)
+set(ZLIB_LIBRARY /usr/local/lib/libz.a CACHE FILEPATH "Zlib static library")
+set(ZLIB_INCLUDE_DIR /usr/local/include CACHE PATH "Zlib include dir")
 find_package(ZLIB REQUIRED)
-
 # Add libcurl as an external project to be built from source
-ExternalProject_Add(libcurl
-    PREFIX libcurl
-    URL "https://curl.se/download/curl-8.10.1.tar.gz"
-    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
-        ${CMAKE_CURRENT_SOURCE_DIR}/libcurl/configure
-        --prefix=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
-        --disable-shared
-        --enable-static
-        --without-libidn2
-        --without-libssh2
-        --without-nghttp2
-        --without-brotli
-        --without-libpsl
-        --disable-ldap
-        --disable-ldaps
-        --disable-imap
-        --disable-pop3
-        --disable-smtp
-        --disable-telnet
-        --disable-dict
-        --disable-file
-        --disable-tftp
-        --disable-rtsp
-        --with-openssl
-        --with-zlib
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libcurl
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libcurl-build
-    BUILD_COMMAND make
-    INSTALL_COMMAND make install
-    BUILD_IN_SOURCE FALSE
-)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
+set(BUILD_STATIC_LIBS ON CACHE BOOL "Build static libs" FORCE)
 
-# Define imported target for libcurl
-add_library(libcurl_static STATIC IMPORTED)
-ExternalProject_Get_Property(libcurl binary_dir source_dir)
-set_target_properties(libcurl_static PROPERTIES
-    IMPORTED_LOCATION "${binary_dir}/lib/libcurl.a"
-    INTERFACE_INCLUDE_DIRECTORIES "${source_dir}/include"
-    INTERFACE_LINK_LIBRARIES "OpenSSL::SSL;OpenSSL::Crypto;ZLIB::ZLIB"
-)
-add_dependencies(libcurl_static libcurl)
+set(CURL_USE_OPENSSL ON CACHE BOOL "Use OpenSSL" FORCE)
+set(CURL_ZLIB ON CACHE BOOL "Use zlib" FORCE)
+set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_LDAPS ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_IMAP ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_SMTP ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_POP3 ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_TELNET ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_DICT ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_FILE ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_TFTP ON CACHE BOOL "" FORCE)
+set(CURL_DISABLE_RTSP ON CACHE BOOL "" FORCE)
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/curl EXCLUDE_FROM_ALL)
+
 
 
 # Set BpfObject input parameters -- note this is usually not necessary unless
@@ -155,7 +134,7 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     OpenSSL::Crypto
     lmdb        
     cjson 
-    libcurl_static    
+    CURL::libcurl    
 )
 # Link the main executable to all generated eBPF skeletons
 foreach(app_item ${apps})
