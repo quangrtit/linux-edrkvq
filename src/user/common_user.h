@@ -36,7 +36,7 @@
 #include <algorithm>
 #include <libgen.h>
 #include <future>
-// #include <curl/curl.h>
+#include <cJSON.h>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128
@@ -226,4 +226,8 @@ class ExecutableIOCBlocker;
 struct CallbackContext {
     ExecutableIOCBlocker *exe_ioc_blocker;
 };
+
+
+// json format for ioc server send to client
+
 #endif // __COMMON_USER_H

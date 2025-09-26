@@ -1,100 +1,3 @@
-// #include "agent_connection.h"
-
-// AgentConnection::AgentConnection(volatile sig_atomic_t* external_exit,
-//                                  const std::string& server_url,
-//                                  const std::string& ca)
-//     : server_url(server_url), ca_cert(ca), exiting(external_exit) {
-//     curl_global_init(CURL_GLOBAL_DEFAULT);
-// }
-
-// AgentConnection::~AgentConnection() {
-//     stop();
-//     curl_global_cleanup();
-// }
-
-// size_t AgentConnection::write_callback(void* contents, size_t size, size_t nmemb, void* userp) {
-//     CallbackCtx* ctx = reinterpret_cast<CallbackCtx*>(userp);
-//     std::string chunk((char*)contents, size * nmemb);
-//     ctx->buffer += chunk;
-
-//     size_t pos;
-//     while ((pos = ctx->buffer.find("\n\n")) != std::string::npos) {
-//         std::string event = ctx->buffer.substr(0, pos);
-//         ctx->buffer.erase(0, pos + 2);
-
-//         if (event.rfind("data:", 0) == 0) {
-//             std::string json_str = event.substr(5); // skip "data:"
-//             std::cerr << "[Agent] Event: " << json_str << std::endl;
-
-//             if (json_str.find("\"stop\"") != std::string::npos) {
-//                 std::cerr << "[Agent] Stop signal received" << std::endl;
-//                 if (ctx->exiting) *ctx->exiting = 1;
-//                 // Return 0 to force curl to abort and let the thread exit
-//                 return 0;
-//             }
-//         }
-//     }
-//     return size * nmemb;
-// }
-
-// bool AgentConnection::start() {
-//     if (worker_thread.joinable()) return false; // already started
-//     worker_thread = std::thread(&AgentConnection::loop, this);
-//     return true;
-// }
-
-// void AgentConnection::stop() {
-//     if (worker_thread.joinable()) worker_thread.join();
-// }
-
-// void AgentConnection::loop() {
-//     std::cerr << "[Agent] Connecting to SSE stream: " << server_url << "/events" << std::endl;
-
-//     while (!*exiting) {
-//         CURL* curl = curl_easy_init();
-//         if (!curl) break;
-
-//         CallbackCtx ctx;
-//         ctx.exiting = exiting;
-//         ctx.buffer.clear();
-
-//         curl_easy_setopt(curl, CURLOPT_URL, (server_url + "/events").c_str());
-//         curl_easy_setopt(curl, CURLOPT_CAINFO, ca_cert.c_str());
-//         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-//         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
-//         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L); // timeout mỗi lần connect
-
-//         CURLcode res = curl_easy_perform(curl);
-//         curl_easy_cleanup(curl);
-
-//         if (*exiting) break;
-
-//         // nếu lỗi hay server đóng, thử reconnect sau 1s
-//         std::this_thread::sleep_for(std::chrono::seconds(1));
-//     }
-// }
-
-// void AgentConnection::http_post(const std::string& path, const std::string& data) {
-//     CURL* curl = curl_easy_init();
-//     if(curl) {
-//         curl_easy_setopt(curl, CURLOPT_URL, (server_url + path).c_str());
-//         curl_easy_setopt(curl, CURLOPT_CAINFO, ca_cert.c_str());
-//         curl_easy_setopt(curl, CURLOPT_POST, 1L);
-//         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
-
-//         struct curl_slist* headers = nullptr;
-//         headers = curl_slist_append(headers, "Content-Type: application/json");
-//         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-//         CURLcode res = curl_easy_perform(curl);
-//         if(res != CURLE_OK) {
-//             std::cerr << "POST failed: " << curl_easy_strerror(res) << std::endl;
-//         }
-
-//         curl_slist_free_all(headers);
-//         curl_easy_cleanup(curl);
-//     }
-// }
 #include "agent_connection.h"
 #include <iostream>
 #include <chrono>
@@ -104,16 +7,20 @@ namespace ssl  = boost::asio::ssl;
 using tcp = asio::ip::tcp;
 
 AgentConnection::AgentConnection(volatile sig_atomic_t* external_exit,
-                                 const std::string& host_,
-                                 const std::string& port_,
+                                 const std::string& host,
+                                 const std::string& port,
                                  const std::string& ca)
     : ssl_ctx(ssl::context::tls_client),
-      resolver(ioc),
-      stream(ioc, ssl_ctx),
-      host(host_), port(port_), ca_cert(ca), exiting(external_exit) 
+      resolver_(ioc),
+      timer_(ioc),
+      host_(host),
+      port_(port),
+      ca_cert_(ca),
+      exiting(external_exit),
+      stopping_(false)
 {
     ssl_ctx.set_verify_mode(ssl::verify_peer);
-    ssl_ctx.load_verify_file(ca_cert);
+    ssl_ctx.load_verify_file(ca_cert_);
 }
 
 AgentConnection::~AgentConnection() {
@@ -122,80 +29,130 @@ AgentConnection::~AgentConnection() {
 
 bool AgentConnection::start() {
     if (worker_thread.joinable()) return false;
-    worker_thread = std::thread(&AgentConnection::loop, this);
+    worker_thread = std::thread([this] {
+        tryConnect();
+        ioc.run();
+    });
     return true;
 }
 
 void AgentConnection::stop() {
-    if (worker_thread.joinable()) {
-        ioc.stop();
-        worker_thread.join();
+    stopping_ = true;
+    ioc.stop();
+    if (socket_) {
+        boost::system::error_code ec;
+        socket_->lowest_layer().close(ec);
     }
+    if (worker_thread.joinable()) worker_thread.join();
 }
 
-void AgentConnection::loop() {
-    while (!*exiting) {
-        try {
-            do_resolve();
-            ioc.run();
-        } catch (std::exception& e) {
-            std::cerr << "[Agent] Exception: " << e.what() << std::endl;
-        }
+void AgentConnection::tryConnect() {
+    if (stopping_ || *exiting) return;
 
-        if (*exiting) break;
-
-        std::cerr << "[Agent] Reconnecting in 1s..." << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        ioc.restart();
+    if (socket_) {
+        boost::system::error_code ec;
+        socket_->lowest_layer().close(ec);
+        socket_.reset();
     }
-}
 
-void AgentConnection::do_resolve() {
-    auto self = this;
-    resolver.async_resolve(host, port,
-        [self](auto ec, auto results) {
+    socket_ = std::make_shared<ssl::stream<tcp::socket>>(ioc, ssl_ctx);
+
+    auto endpoints = resolver_.resolve(host_, port_);
+    asio::async_connect(socket_->lowest_layer(), endpoints,
+        [this](auto ec, auto) {
             if (!ec) {
-                asio::async_connect(self->stream.next_layer(), results,
-                    [self](auto ec, auto) {
+                socket_->async_handshake(ssl::stream_base::client,
+                    [this](auto ec) {
                         if (!ec) {
-                            self->do_handshake();
+                            std::cerr << "[Agent] TLS handshake success\n";
+                            do_write_request();
                         } else {
-                            std::cerr << "[Agent] Connect error: " << ec.message() << std::endl;
+                            std::cerr << "[Agent] Handshake error: " << ec.message() << "\n";
+                            scheduleReconnect();
                         }
                     });
             } else {
-                std::cerr << "[Agent] Resolve error: " << ec.message() << std::endl;
+                std::cerr << "[Agent] Connection error: " << ec.message() << "\n";
+                scheduleReconnect();
             }
         });
 }
+void AgentConnection::scheduleReconnect() {
+    if (stopping_ || *exiting) return;
 
-void AgentConnection::do_handshake() {
+    if (socket_) {
+        boost::system::error_code ec;
+        socket_->lowest_layer().close(ec);
+        socket_.reset();
+    }
+
+    timer_.expires_from_now(boost::posix_time::seconds(5));
+    timer_.async_wait([this](const boost::system::error_code& ec) {
+        if (!ec && !stopping_ && !*exiting) {
+            std::cerr << "[Agent] Retrying connection...\n";
+            tryConnect();
+        }
+    });
+}
+
+void AgentConnection::do_write_request() {
     auto self = this;
-    stream.async_handshake(ssl::stream_base::client,
-        [self](auto ec) {
+    std::string req =
+        "GET /events HTTP/1.1\r\n"
+        "Host: " + host_ + "\r\n"
+        "Accept: application/json\r\n"
+        "Connection: keep-alive\r\n\r\n";
+
+    asio::async_write(*socket_, asio::buffer(req),
+        [this](auto ec, std::size_t) {
             if (!ec) {
-                std::cerr << "[Agent] TLS handshake success\n";
-                self->do_read();
+                std::cerr << "[Agent] Request sent, waiting for data...\n";
+                do_read();
             } else {
-                std::cerr << "[Agent] TLS handshake error: " << ec.message() << std::endl;
+                std::cerr << "[Agent] Write error: " << ec.message() << "\n";
+                scheduleReconnect();
             }
         });
 }
 
 void AgentConnection::do_read() {
-    auto buf = std::make_shared<std::vector<char>>(1024);
-    auto self = this;
-    std::cerr << "[Agent] Waiting for data...\n";
-    stream.async_read_some(asio::buffer(*buf),
-        [self, buf](auto ec, std::size_t n) {
+    auto buf = std::make_shared<std::vector<char>>(4096);
+    socket_->async_read_some(asio::buffer(*buf),
+        [this, buf](auto ec, std::size_t n) {
             if (!ec) {
                 std::string data(buf->data(), n);
-                std::cerr << "[Agent] Received: " << data << std::endl;
-                self->do_read(); 
+                handle_message(data);
+                do_read(); 
             } else {
-                if (ec != asio::error::eof)
-                    std::cerr << "[Agent] Read error: " << ec.message() << std::endl;
+                std::cerr << "[Agent] Read error: " << ec.message() << "\n";
+                scheduleReconnect();
             }
         });
+}
+
+void AgentConnection::handle_message(const std::string& data) {
+    std::cerr << "[Agent] Received data: " << data << "\n";
+    cJSON* root = cJSON_Parse(data.c_str());
+    if (!root) {
+        std::cerr << "[Agent] JSON parse error\n";
+        return;
+    }
+
+    cJSON* action = cJSON_GetObjectItemCaseSensitive(root, "type");
+    if (cJSON_IsString(action) && action->valuestring) {
+        std::string cmd(action->valuestring);
+
+        if (cmd == "stop_service") {
+            std::cerr << "[Agent] Stop action received\n";
+            if (exiting) *exiting = 1;
+        } else if (cmd == "add_ioc") {
+            std::cerr << "[Agent] Add IOC received\n";
+        } else if (cmd == "add_ip") {
+            std::cerr << "[Agent] Add IP received\n";
+        } else if (cmd == "delete_ip") {
+            std::cerr << "[Agent] Delete IP received\n";
+        }
+    }
+
+    cJSON_Delete(root);
 }

@@ -49,30 +49,30 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
 
-set(ZLIB_USE_STATIC_LIBS TRUE)
-set(ZLIB_LIBRARY /usr/local/lib/libz.a CACHE FILEPATH "Zlib static library")
-set(ZLIB_INCLUDE_DIR /usr/local/include CACHE PATH "Zlib include dir")
-find_package(ZLIB REQUIRED)
-# Add libcurl as an external project to be built from source
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
-set(BUILD_STATIC_LIBS ON CACHE BOOL "Build static libs" FORCE)
+# set(ZLIB_USE_STATIC_LIBS TRUE)
+# set(ZLIB_LIBRARY /usr/local/lib/libz.a CACHE FILEPATH "Zlib static library")
+# set(ZLIB_INCLUDE_DIR /usr/local/include CACHE PATH "Zlib include dir")
+# find_package(ZLIB REQUIRED)
+# # Add libcurl as an external project to be built from source
+# set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
+# set(BUILD_STATIC_LIBS ON CACHE BOOL "Build static libs" FORCE)
 
-set(CURL_USE_OPENSSL ON CACHE BOOL "Use OpenSSL" FORCE)
-set(CURL_ZLIB ON CACHE BOOL "Use zlib" FORCE)
-set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_LDAPS ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_IMAP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_SMTP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_POP3 ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_TELNET ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_DICT ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_FILE ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_TFTP ON CACHE BOOL "" FORCE)
-set(CURL_DISABLE_RTSP ON CACHE BOOL "" FORCE)
-set(USE_LIBIDN2 OFF CACHE BOOL "Disable IDN2" FORCE)
-set(CURL_USE_LIBIDN2 OFF CACHE BOOL "Disable IDN2" FORCE)
-set(CURL_USE_LIBPSL OFF CACHE BOOL "Disable PSL" FORCE) 
-add_subdirectory(${CMAKE_SOURCE_DIR}/curl EXCLUDE_FROM_ALL)
+# set(CURL_USE_OPENSSL ON CACHE BOOL "Use OpenSSL" FORCE)
+# set(CURL_ZLIB ON CACHE BOOL "Use zlib" FORCE)
+# set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_LDAPS ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_IMAP ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_SMTP ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_POP3 ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_TELNET ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_DICT ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_FILE ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_TFTP ON CACHE BOOL "" FORCE)
+# set(CURL_DISABLE_RTSP ON CACHE BOOL "" FORCE)
+# set(USE_LIBIDN2 OFF CACHE BOOL "Disable IDN2" FORCE)
+# set(CURL_USE_LIBIDN2 OFF CACHE BOOL "Disable IDN2" FORCE)
+# set(CURL_USE_LIBPSL OFF CACHE BOOL "Disable PSL" FORCE) 
+# add_subdirectory(${CMAKE_SOURCE_DIR}/curl EXCLUDE_FROM_ALL)
 
 
 
@@ -145,7 +145,7 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     OpenSSL::Crypto
     lmdb        
     cjson 
-    CURL::libcurl  
+    # CURL::libcurl  
     Boost::system
     Boost::thread  
 )

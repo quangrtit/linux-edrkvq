@@ -29,7 +29,7 @@ IOCDatabase::IOCDatabase(const std::string& path) {
     mdb_env_set_maxdbs(env, 10);
 
     // add new 
-    if (mdb_env_set_mapsize(env, 1024UL * 1024 * 1024) != 0)
+    if (mdb_env_set_mapsize(env, 1024UL * 1024 * 1024 * 2) != 0)
         throw std::runtime_error("Failed to set LMDB map size");
 
     if (mdb_env_open(env, path.c_str(), 0, 0664) != 0)
