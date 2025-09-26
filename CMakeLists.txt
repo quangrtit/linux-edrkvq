@@ -36,6 +36,15 @@ ExternalProject_Add(bpftool
   STEP_TARGETS build
 )
 
+# --- Boost (static) setup ---
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME ON)
+
+find_package(Boost REQUIRED COMPONENTS system thread)
+
+include_directories(${Boost_INCLUDE_DIRS})
+
 # --- OpenSSL static library setup ---
 set(OPENSSL_USE_STATIC_LIBS TRUE)
 find_package(OpenSSL REQUIRED)
@@ -136,7 +145,9 @@ target_link_libraries(${MAIN_EXECUTABLE_NAME} PRIVATE
     OpenSSL::Crypto
     lmdb        
     cjson 
-    CURL::libcurl    
+    CURL::libcurl  
+    Boost::system
+    Boost::thread  
 )
 # Link the main executable to all generated eBPF skeletons
 foreach(app_item ${apps})

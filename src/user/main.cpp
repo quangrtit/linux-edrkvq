@@ -411,7 +411,7 @@ int main() {
     // std::chrono::duration<double, std::milli> elapsed = end - start;
     // std::cerr << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
     // std::cerr << "this is database path: " << IOC_DB_PATH << std::endl;
-    AgentConnection agent_conn(&exiting, "https://192.168.159.130:8443/events", "ca.pem");
+    AgentConnection agent_conn(&exiting, "192.168.159.130", "8443", "ca.pem");
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;
