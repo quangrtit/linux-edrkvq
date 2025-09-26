@@ -120,15 +120,47 @@ bool IOCDatabase::delete_entry(MDB_dbi dbi, const std::string& key) {
     k.mv_data = (void*)key.data();
 
     rc = mdb_del(txn, dbi, &k, nullptr); 
-    if (rc != 0 && rc != MDB_NOTFOUND) {
-        std::cerr << "Failed to delete key: " << key << "\n";
+    if (rc == MDB_NOTFOUND) {
+        mdb_txn_abort(txn);
+        return false;  
+    }
+    else if (rc != 0) {
+        std::cerr << "Failed to delete key: " << key
+                  << " error: " << mdb_strerror(rc) << "\n";
         mdb_txn_abort(txn);
         return false;
     }
 
-    mdb_txn_commit(txn);
-    return true;
+    rc = mdb_txn_commit(txn);
+    if (rc != 0) {
+        std::cerr << "Commit failed: " << mdb_strerror(rc) << "\n";
+        return false;
+    }
+    return true; 
 }
+
+// bool IOCDatabase::delete_entry(MDB_dbi dbi, const std::string& key) {
+//     MDB_txn* txn;
+//     int rc = mdb_txn_begin(env, nullptr, 0, &txn);  
+//     if (rc != 0) {
+//         std::cerr << "Failed to begin transaction for delete\n";
+//         return false;
+//     }
+
+//     MDB_val k;
+//     k.mv_size = key.size();
+//     k.mv_data = (void*)key.data();
+
+//     rc = mdb_del(txn, dbi, &k, nullptr); 
+//     if (rc != 0 && rc != MDB_NOTFOUND) {
+//         std::cerr << "Failed to delete key: " << key << "\n";
+//         mdb_txn_abort(txn);
+//         return false;
+//     }
+
+//     mdb_txn_commit(txn);
+//     return true;
+// }
 
 // func 
 bool IOCDatabase::delete_file_hash(const std::string& hash) {

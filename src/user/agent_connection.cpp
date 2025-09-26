@@ -9,7 +9,8 @@ using tcp = asio::ip::tcp;
 AgentConnection::AgentConnection(volatile sig_atomic_t* external_exit,
                                  const std::string& host,
                                  const std::string& port,
-                                 const std::string& ca)
+                                 const std::string& ca,
+                                 struct agent_args* args)
     : ssl_ctx(ssl::context::tls_client),
       resolver_(ioc),
       timer_(ioc),
@@ -17,7 +18,8 @@ AgentConnection::AgentConnection(volatile sig_atomic_t* external_exit,
       port_(port),
       ca_cert_(ca),
       exiting(external_exit),
-      stopping_(false)
+      stopping_(false),
+      args_(args)
 {
     ssl_ctx.set_verify_mode(ssl::verify_peer);
     ssl_ctx.load_verify_file(ca_cert_);
@@ -131,13 +133,40 @@ void AgentConnection::do_read() {
 }
 
 void AgentConnection::handle_message(const std::string& data) {
+    /*
+      exmaple json received:
+      {
+        "type": "ioc_update",
+        "timestamp": 1727359200,
+        "data": {
+          "file_hashes": [
+            {
+              "value": "ccf29345b53dd399ee1a1561e99871b2d29219682392e601002099df77c18709",
+              "first_seen": 1727359000,
+              "last_seen": 1727359000,
+              "source": "admin"
+            }
+          ], 
+          "ips": [
+            {
+              "value": "192.140.87.197",
+              "first_seen": 1727359000,
+              "last_seen": 1727359000,
+              "source": "admin"
+            }
+          ]
+        }
+    }
+    */
     std::cerr << "[Agent] Received data: " << data << "\n";
+    IOCDatabase *db = args_->db;
+    struct self_defense_bpf *skel_self_defense = args_->skel_self_defense;
+    struct ioc_block_bpf *skel_ioc_block = args_->skel_ioc_block;
     cJSON* root = cJSON_Parse(data.c_str());
     if (!root) {
         std::cerr << "[Agent] JSON parse error\n";
         return;
     }
-
     cJSON* action = cJSON_GetObjectItemCaseSensitive(root, "type");
     if (cJSON_IsString(action) && action->valuestring) {
         std::string cmd(action->valuestring);
@@ -145,12 +174,124 @@ void AgentConnection::handle_message(const std::string& data) {
         if (cmd == "stop_service") {
             std::cerr << "[Agent] Stop action received\n";
             if (exiting) *exiting = 1;
-        } else if (cmd == "add_ioc") {
-            std::cerr << "[Agent] Add IOC received\n";
-        } else if (cmd == "add_ip") {
-            std::cerr << "[Agent] Add IP received\n";
-        } else if (cmd == "delete_ip") {
-            std::cerr << "[Agent] Delete IP received\n";
+        } else if (cmd == "ioc_update") {
+            std::cerr << "[Agent] Update IOC received\n";
+            cJSON* data = cJSON_GetObjectItemCaseSensitive(root, "data");
+            if (cJSON_IsObject(data)) {
+                std::cerr << "Debug [Agent] Processing IOC update\n";
+                // Process the IOC update
+                cJSON* file_hashes = cJSON_GetObjectItemCaseSensitive(data, "file_hashes");
+                cJSON* ips = cJSON_GetObjectItemCaseSensitive(data, "ips");
+                if (cJSON_IsArray(file_hashes)) {
+                    cJSON* file_hash = NULL;
+                    cJSON_ArrayForEach(file_hash, file_hashes) {
+                        if (cJSON_IsObject(file_hash)) {
+                            // Extract file hash information
+                            std::string value = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(file_hash, "value"));
+                            std::cerr << "[Agent] UpdateFile hash: " << (value.empty() ? "null" : value) << "\n";
+                        }
+                    }
+                }
+                if (cJSON_IsArray(ips)) {
+                    std::cerr << "debug: found ips array\n";
+                    cJSON* ip = NULL;
+                    cJSON_ArrayForEach(ip, ips) {
+                        if (cJSON_IsObject(ip)) {
+                            // Extract IP information
+                            std::string value = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(ip, "value"));
+                            std::cerr << "[Agent] Update IP: " << (!value.empty() ? value : "null") << "\n";
+                            std::cerr << "this is size ip: " << value.size() << std::endl;
+                            IOCMeta meta;
+                            db->add_ip(value, meta);
+                            struct ip_lpm_key lpm_key = {};
+                            __u32 verdict = 1; // block
+
+                            if (value.find(':') != std::string::npos) {
+                                // IPv6
+                                lpm_key.prefixlen = 128;
+                                if (inet_pton(AF_INET6, value.c_str(), lpm_key.data) != 1) {
+                                    std::cerr << "Invalid IPv6: " << value << std::endl;
+                                    continue;
+                                }
+                            } else {
+                                // IPv4
+                                lpm_key.prefixlen = 32;
+                                if (inet_pton(AF_INET, value.c_str(), lpm_key.data) != 1) {
+                                    std::cerr << "Invalid IPv4: " << value << std::endl;
+                                    continue;
+                                }
+                            }
+                            if (bpf_map__update_elem(skel_ioc_block->maps.ioc_ip_map,
+                                &lpm_key, sizeof(lpm_key),
+                                &verdict, sizeof(verdict),
+                                BPF_ANY) != 0) {
+                                perror("bpf_map__update_elem failed");
+                            }
+                            // if (bpf_map__update_elem(skel_ioc_block->maps.ioc_ip_map,
+                            //                         &lpm_key, sizeof(lpm_key),
+                            //                         &verdict, sizeof(verdict),
+                            //                         BPF_ANY) != 0) {
+                            //     perror("bpf_map__update_elem failed");
+                            // }
+                        }
+                    }
+                }
+            }
+        } else if (cmd == "ioc_delete") {
+            std::cerr << "[Agent] Delete IOC received\n";
+            cJSON* data = cJSON_GetObjectItemCaseSensitive(root, "data");
+            if (cJSON_IsObject(data)) {
+                // Process the IOC deletion
+                cJSON* file_hashes = cJSON_GetObjectItemCaseSensitive(data, "file_hashes");
+                cJSON* ips = cJSON_GetObjectItemCaseSensitive(data, "ips");
+                if (cJSON_IsArray(file_hashes)) {
+                    cJSON* file_hash = NULL;
+                    cJSON_ArrayForEach(file_hash, file_hashes) {
+                        if (cJSON_IsObject(file_hash)) {
+                            // Extract file hash information
+                            std::string value = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(file_hash, "value"));
+                            std::cerr << "[Agent] Delete File hash: " << (value.empty() ? "null" : value) << "\n";
+                        }
+                    }
+                }
+                if (cJSON_IsArray(ips)) {
+                    cJSON* ip = NULL;
+                    cJSON_ArrayForEach(ip, ips) {
+                        if (cJSON_IsObject(ip)) {
+                            // Extract IP information
+                            std::string value = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(ip, "value"));
+                            std::cerr << "[Agent] Delete IP: " << (value.empty() ? "null" : value) << "\n";
+                            if (db->delete_ip(value)) {
+                                std::cerr << "[Agent] Deleted IP real: " << value << std::endl;
+                                struct ip_lpm_key lpm_key = {};
+
+                                if (value.find(':') != std::string::npos) {
+                                    // IPv6
+                                    lpm_key.prefixlen = 128;
+                                    if (inet_pton(AF_INET6, value.c_str(), lpm_key.data) != 1) {
+                                        std::cerr << "Invalid IPv6: " << value << std::endl;
+                                        continue;
+                                    }
+                                } else {
+                                    // IPv4
+                                    lpm_key.prefixlen = 32;
+                                    if (inet_pton(AF_INET, value.c_str(), lpm_key.data) != 1) {
+                                        std::cerr << "Invalid IPv4: " << value << std::endl;
+                                        continue;
+                                    }
+                                }
+                                if (bpf_map__delete_elem(skel_ioc_block->maps.ioc_ip_map,
+                                    &lpm_key, sizeof(lpm_key), 0) != 0) {
+                                    perror("bpf_map__delete_elem failed");
+                                }
+
+                            } else {
+                                std::cerr << "[Server Thread] IP not found: " << value << std::endl;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

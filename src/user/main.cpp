@@ -174,14 +174,14 @@ static void sig_handler(int sig) {
     printf("[Signal Handler] Received signal %d but ignoring.\n", sig);
 }
 
-struct thread_args {
-    IOCDatabase *db;
+// struct agent_args {
+//     IOCDatabase *db;
     
-    struct self_defense_bpf *skel_self_defense;
-    struct ioc_block_bpf *skel_ioc_block;
-};
+//     struct self_defense_bpf *skel_self_defense;
+//     struct ioc_block_bpf *skel_ioc_block;
+// };
 // void* socket_thread(void* arg) {
-//     struct thread_args *args = (struct thread_args *)arg;
+//     struct agent_args *args = (struct agent_args *)arg;
 //     IOCDatabase *db = args->db;
 //     struct self_defense_bpf *skel_self_defense = args->skel_self_defense;
 //     struct ioc_block_bpf *skel_ioc_block = args->skel_ioc_block;
@@ -411,7 +411,7 @@ int main() {
     // std::chrono::duration<double, std::milli> elapsed = end - start;
     // std::cerr << "total time load IP IOC: " << elapsed.count() << " total ip: " << cnt << std::endl;
     // std::cerr << "this is database path: " << IOC_DB_PATH << std::endl;
-    AgentConnection agent_conn(&exiting, "192.168.159.130", "8443", "ca.pem");
+    
     ExecutableIOCBlocker exe_ioc_blocker(&exiting, ioc_db);
     CallbackContext rb_ctx;
     rb_ctx.exe_ioc_blocker = &exe_ioc_blocker;
@@ -422,7 +422,13 @@ int main() {
     struct ioc_block_bpf *skel_ioc_block;
     struct ring_buffer *rb_self_defense = NULL;
     struct ring_buffer *rb_ioc_block = NULL;
-    struct thread_args args;
+    struct agent_args args;
+    args = {
+        .db = &ioc_db,
+        .skel_self_defense = skel_self_defense,
+        .skel_ioc_block = skel_ioc_block
+    };
+    AgentConnection agent_conn(&exiting, "192.168.159.130", "8443", "ca.pem", &args);
     int err_all; 
     std::vector<unsigned int> all_val;
     signal(SIGINT, sig_handler);
@@ -472,11 +478,7 @@ int main() {
     }
 
     printf("PID: %d, Name: %s [user space main.c] Watching for file deletes... Ctrl+C to stop.\n", pid, process_name);
-    args = {
-        .db = &ioc_db,
-        .skel_self_defense = skel_self_defense,
-        .skel_ioc_block = skel_ioc_block
-    };
+    
     // if (pthread_create(&network_thread_id, NULL, socket_thread, &args) != 0) {
     //     fprintf(stderr, "Failed to create socket thread.\n");
     // }
