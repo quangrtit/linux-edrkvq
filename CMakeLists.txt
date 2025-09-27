@@ -187,8 +187,8 @@ configure_file("${CMAKE_SOURCE_DIR}/test_environment/tmp/main"
                "${CMAKE_BINARY_DIR}/main_test_block_exe"
                COPYONLY)
 # copy ca.pem 
-configure_file("${CMAKE_SOURCE_DIR}/configs/ca.pem"
-               "${CMAKE_BINARY_DIR}/ca.pem"
+configure_file("${CMAKE_SOURCE_DIR}/configs/ca_self.pem"
+               "${CMAKE_BINARY_DIR}/ca_self.pem"
                COPYONLY)
 file(COPY "${CMAKE_SOURCE_DIR}/configs/IOC_DB"
      DESTINATION "${CMAKE_BINARY_DIR}")

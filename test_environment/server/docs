@@ -1,0 +1,13 @@
+sudo python3 server.py \
+  -p 8443 \
+  -c certs/server.crt \
+  -k certs/server.key 
+curl -v https://192.168.159.128:8443/ --cacert ca.pem
+# Lấy danh sách IOC
+curl -v https://192.168.159.128:8443/ioc --cacert ca.pem
+
+# Thêm IOC mới
+curl -v -X POST https://192.168.159.128:8443/ioc \
+  --cacert ca.pem \
+  -H "Content-Type: application/json" \
+  -d '{"ioc":"malware_hash_123"}'

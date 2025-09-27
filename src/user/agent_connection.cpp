@@ -221,18 +221,28 @@ void AgentConnection::handle_message(const std::string& data) {
                                     continue;
                                 }
                             }
+                            // // debug: verify map and fd
+                            // if (!skel_ioc_block || !skel_ioc_block->maps.ioc_ip_map) {
+                            //     std::cerr << "[Agent][IOC] skel_ioc_block or ioc_ip_map is NULL\n";
+                            //     continue;
+                            // }
+                            // int map_fd = bpf_map__fd(skel_ioc_block->maps.ioc_ip_map);
+                            // if (map_fd < 0) {
+                            //     std::cerr << "[Agent][IOC] map_fd invalid: " << map_fd << "\n";
+                            //     continue;
+                            // }
+
+                            // std::cerr << "[Agent][IOC] BEFORE update fd=" << map_fd
+                            //         << " key_size=" << sizeof(lpm_key)
+                            //         << " value_size=" << sizeof(verdict) << "\n";
+                            // static_assert(sizeof(struct ip_lpm_key) == 20,
+                            // "ip_lpm_key size mismatch, must be 20");
                             if (bpf_map__update_elem(skel_ioc_block->maps.ioc_ip_map,
-                                &lpm_key, sizeof(lpm_key),
-                                &verdict, sizeof(verdict),
-                                BPF_ANY) != 0) {
+                                                    &lpm_key, sizeof(lpm_key),
+                                                    &verdict, sizeof(verdict),
+                                                    BPF_ANY) != 0) {
                                 perror("bpf_map__update_elem failed");
                             }
-                            // if (bpf_map__update_elem(skel_ioc_block->maps.ioc_ip_map,
-                            //                         &lpm_key, sizeof(lpm_key),
-                            //                         &verdict, sizeof(verdict),
-                            //                         BPF_ANY) != 0) {
-                            //     perror("bpf_map__update_elem failed");
-                            // }
                         }
                     }
                 }

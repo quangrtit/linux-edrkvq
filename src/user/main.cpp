@@ -423,12 +423,6 @@ int main() {
     struct ring_buffer *rb_self_defense = NULL;
     struct ring_buffer *rb_ioc_block = NULL;
     struct agent_args args;
-    args = {
-        .db = &ioc_db,
-        .skel_self_defense = skel_self_defense,
-        .skel_ioc_block = skel_ioc_block
-    };
-    AgentConnection agent_conn(&exiting, "192.168.159.130", "8443", "ca.pem", &args);
     int err_all; 
     std::vector<unsigned int> all_val;
     signal(SIGINT, sig_handler);
@@ -451,6 +445,13 @@ int main() {
     if(load_ioc_ip_into_kernel_map(skel_ioc_block, ioc_db)) {
          fprintf(stderr, "[user space main.c] load IOC IP success\n");
     }
+    // init connection
+    args = {
+        .db = &ioc_db,
+        .skel_self_defense = skel_self_defense,
+        .skel_ioc_block = skel_ioc_block
+    };
+    AgentConnection agent_conn(&exiting, "192.168.153.128", "8443", "ca_self.pem", &args);
     // Attach tracepoints
     err_all = self_defense_bpf__attach(skel_self_defense);
     if (err_all) {
