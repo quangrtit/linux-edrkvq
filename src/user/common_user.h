@@ -54,8 +54,9 @@
 #define LIMIT_IP_STORE 50000
 #define LIMIT_FILE_SIZE ((__u64)650 * 1024 * 1024)
 #define TIME_OUT_CHECK_FILE_MS 200 // 200ms
+#define SERVER_IP "192.168.153.128"
+#define SERVER_PORT "8443"
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
-
 // #ifndef DEFAULT_POLICY_FILE_PATH
 // #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
 // #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"

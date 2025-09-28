@@ -218,6 +218,9 @@ install(FILES "${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"
 install(FILES "${CMAKE_SOURCE_DIR}/configs/IOC_DB/data.mdb"
         DESTINATION "/var/lib/SentinelEDR/IOC_DB"
         PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+install(FILES "${CMAKE_SOURCE_DIR}/configs/ca_self.pem"
+        DESTINATION "/etc/SentinelEDR/"
+        PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 # Placeholder for systemd service files (if application runs as a daemon)
 # set(SYSTEMD_SERVICE_FILES
 #     "${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"

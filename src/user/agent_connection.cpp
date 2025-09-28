@@ -193,7 +193,7 @@ void AgentConnection::handle_message(const std::string& data) {
                     }
                 }
                 if (cJSON_IsArray(ips)) {
-                    std::cerr << "debug: found ips array\n";
+                    // std::cerr << "debug: found ips array\n";
                     cJSON* ip = NULL;
                     cJSON_ArrayForEach(ip, ips) {
                         if (cJSON_IsObject(ip)) {
@@ -205,7 +205,7 @@ void AgentConnection::handle_message(const std::string& data) {
                             db->add_ip(value, meta);
                             struct ip_lpm_key lpm_key = {};
                             __u32 verdict = 1; // block
-
+                            // std::cerr << "debug map err 1: \n";
                             if (value.find(':') != std::string::npos) {
                                 // IPv6
                                 lpm_key.prefixlen = 128;
@@ -221,6 +221,7 @@ void AgentConnection::handle_message(const std::string& data) {
                                     continue;
                                 }
                             }
+                            // std::cerr << "debug map err 2: \n";
                             // // debug: verify map and fd
                             // if (!skel_ioc_block || !skel_ioc_block->maps.ioc_ip_map) {
                             //     std::cerr << "[Agent][IOC] skel_ioc_block or ioc_ip_map is NULL\n";
@@ -241,7 +242,12 @@ void AgentConnection::handle_message(const std::string& data) {
                                                     &lpm_key, sizeof(lpm_key),
                                                     &verdict, sizeof(verdict),
                                                     BPF_ANY) != 0) {
-                                perror("bpf_map__update_elem failed");
+                                perror("update ioc_ip_map bpf_map__update_elem failed");
+                            }
+                             // delete cache if have 
+                            if (bpf_map__delete_elem(skel_ioc_block->maps.block_list_ip, 
+                                &lpm_key, sizeof(lpm_key), 0) != 0) {
+                                perror("update block_list_ip bpf_map__delete_elem failed");
                             }
                         }
                     }
@@ -290,9 +296,15 @@ void AgentConnection::handle_message(const std::string& data) {
                                         continue;
                                     }
                                 }
+                                // delete ioc 
                                 if (bpf_map__delete_elem(skel_ioc_block->maps.ioc_ip_map,
                                     &lpm_key, sizeof(lpm_key), 0) != 0) {
-                                    perror("bpf_map__delete_elem failed");
+                                    perror("delete ioc_ip_map bpf_map__delete_elem failed");
+                                }
+                                // delete cache if have 
+                                if (bpf_map__delete_elem(skel_ioc_block->maps.block_list_ip, 
+                                    &lpm_key, sizeof(lpm_key), 0) != 0) {
+                                    perror("delete block_list_ip bpf_map__delete_elem failed");
                                 }
 
                             } else {

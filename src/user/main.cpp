@@ -371,7 +371,10 @@ int main() {
         return 0;
     }
     std::string ioc_db_path;
+    std::string ca_path;
     DEFAULT_POLICY_FILE_PATH == "/var/lib/SentinelEDR/self_defense_policy.json" ? ioc_db_path = "/var/lib/SentinelEDR/IOC_DB" : ioc_db_path = "IOC_DB";
+    DEFAULT_POLICY_FILE_PATH == "/var/lib/SentinelEDR/self_defense_policy.json" ? ca_path = "/etc/SentinelEDR/ca_self.pem" : ca_path = "ca_self.pem";
+    std::cerr << "one path: " << ioc_db_path << " " << ca_path << std::endl;
     // std::cerr << "IOC FOLDER PATH: " << ioc_db_path << " default policy file path: " << DEFAULT_POLICY_FILE_PATH << std::endl;
     // ioc_db_path = "/var/lib/SentinelEDR/IOC_DB/IOC_DB";
     IOCDatabase ioc_db(ioc_db_path);
@@ -433,9 +436,11 @@ int main() {
     pid_t ppid = getppid();       // Parent PID
     char process_name[17] = {0};
     prctl(PR_GET_NAME, (unsigned long)process_name);
+    
     // Load and verify BPF program
     skel_self_defense = self_defense_bpf__open_and_load();
     skel_ioc_block = ioc_block_bpf__open_and_load();
+
     if (!skel_self_defense || !skel_ioc_block) {
         fprintf(stderr, "[user space main.c] Failed to open and load BPF skeleton\n");
         return 1;
@@ -451,7 +456,7 @@ int main() {
         .skel_self_defense = skel_self_defense,
         .skel_ioc_block = skel_ioc_block
     };
-    AgentConnection agent_conn(&exiting, "192.168.153.128", "8443", "ca_self.pem", &args);
+    AgentConnection agent_conn(&exiting, SERVER_IP, SERVER_PORT, ca_path, &args);
     // Attach tracepoints
     err_all = self_defense_bpf__attach(skel_self_defense);
     if (err_all) {

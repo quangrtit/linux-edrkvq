@@ -66,7 +66,8 @@ void IOCDatabase::add_entry(MDB_dbi dbi, const std::string& key, const IOCMeta& 
     v.mv_data = (void*)s.data();
 
     if(mdb_put(txn, dbi, &k, &v, 0) != 0) {
-        printf("Failed to put key: %s\n", key.c_str());
+        // printf("Failed to put key: %s\n", key.c_str());
+        std::cerr << "Failed to put key: " << key << std::endl;
     }
     mdb_txn_commit(txn);
 }
@@ -275,5 +276,6 @@ void update_database(IOCDatabase& db) {
     }
     if(!batch.empty()) db.add_entries_batch(db.ip_dbi, batch);
     file_ip.close();
-    printf("total recorn hash file: %d\n", count_record);
+    std::cerr << "total recorn hash file: " << count_record << std::endl;
+    // printf("total recorn hash file: %d\n", count_record);
 }
