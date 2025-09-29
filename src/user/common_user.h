@@ -54,15 +54,10 @@
 #define LIMIT_IP_STORE 50000
 #define LIMIT_FILE_SIZE ((__u64)650 * 1024 * 1024)
 #define TIME_OUT_CHECK_FILE_MS 200 // 200ms
-#define SERVER_IP "192.168.153.128"
+#define SERVER_IP "192.168.159.128"
 #define SERVER_PORT "8443"
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
-// #ifndef DEFAULT_POLICY_FILE_PATH
-// #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
-// #define IOC_DB_PATH BASE_POLICY_DIR "/IOC_DB"
-// #else
-// #define IOC_DB_PATH "IOC_DB"
-// #endif
+
 
 #if !defined(DEFAULT_POLICY_FILE_PATH) 
 #define DEFAULT_POLICY_FILE_PATH BASE_POLICY_DIR "/self_defense_policy.json"
@@ -73,13 +68,13 @@
 
 
 // build db
-// #define IOC_DB_PATH "/home/quang/myLib/vcs-ajiant-edr/configs/IOC_DB"
-#define IOC_HASH_FILE_PATH "/home/quang/myLib/vcs-ajiant-edr/tools/IOC_DB/ioc_file_hash"
-#define IOC_IP_PATH "/home/quang/myLib/vcs-ajiant-edr/tools/IOC_DB/ioc_ip"
+// #define IOC_DB_PATH "/home/ubuntu/lib/vdt-ajiant-edr/configs/IOC_DB"
+#define IOC_HASH_FILE_PATH "/home/ubuntu/lib/vdt-ajiant-edr/tools/IOC_DB/ioc_file_hash"
+#define IOC_IP_PATH "/home/ubuntu/lib/vdt-ajiant-edr/tools/IOC_DB/ioc_ip"
 
 #define FILE_TEST_BLOCK_EXE "main_test_block_exe"
 
-#define PATH_LOG_ERROR "/home/quang/myLib/vcs-ajiant-edr/build/log.txt" 
+#define PATH_LOG_ERROR "/home/ubuntu/lib/vdt-ajiant-edr/build/log.txt" 
 
 enum log_level {
     INFO,

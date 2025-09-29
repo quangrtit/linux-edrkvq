@@ -1,11 +1,11 @@
 import socket, ssl, threading, argparse, json
 import time
 CLIENTS = set()
-ioc_update_file_hashes_list = ["12345567"]
-ioc_update_ips_list = ["8.8.8.8"]
+ioc_update_file_hashes_list = ["fb9f4034d8a9903ec9650cc7dcaf648097b9483dedcab74abc6363def50c9d1e"]
+ioc_update_ips_list = ["222.255.113.97"] # https://daotao.ptit.edu.vn/
 
-ioc_delete_file_hashes_list = ["7654321"]
-ioc_delete_ips_list = ["8.8.8.8"]
+ioc_delete_file_hashes_list = ["fb9f4034d8a9903ec9650cc7dcaf648097b9483dedcab74abc6363def50c9d1e"]
+ioc_delete_ips_list = ["222.255.113.97"]
 
 def build_ioc(type, file_hashes, ips, source="admin"):
     ts = int(time.time())

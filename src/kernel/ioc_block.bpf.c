@@ -316,7 +316,7 @@ int BPF_PROG(bprm_creds_from_file, struct linux_binprm *bprm, struct file *file,
     if (links > 0) {
         return ret;
     }
-    bpf_printk("have file exe debug\n");
+    // bpf_printk("have file exe debug\n");
     val = bpf_map_lookup_elem(&filelesslock_args_map, &k);
     if (!val) {
         return ret;

@@ -189,6 +189,8 @@ void AgentConnection::handle_message(const std::string& data) {
                             // Extract file hash information
                             std::string value = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(file_hash, "value"));
                             std::cerr << "[Agent] UpdateFile hash: " << (value.empty() ? "null" : value) << "\n";
+                            IOCMeta meta;
+                            db->add_file_hash(value, meta);
                         }
                     }
                 }
@@ -267,6 +269,11 @@ void AgentConnection::handle_message(const std::string& data) {
                             // Extract file hash information
                             std::string value = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(file_hash, "value"));
                             std::cerr << "[Agent] Delete File hash: " << (value.empty() ? "null" : value) << "\n";
+                            if (db->delete_file_hash(value)) {
+                                std::cerr << "[Agent] Deleted File hash real: " << value << std::endl;
+                            } else {
+                                std::cerr << "[Server Thread] File hash not found: " << value << std::endl;
+                            }
                         }
                     }
                 }

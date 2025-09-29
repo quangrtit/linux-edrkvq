@@ -375,8 +375,8 @@ int main() {
     DEFAULT_POLICY_FILE_PATH == "/var/lib/SentinelEDR/self_defense_policy.json" ? ioc_db_path = "/var/lib/SentinelEDR/IOC_DB" : ioc_db_path = "IOC_DB";
     DEFAULT_POLICY_FILE_PATH == "/var/lib/SentinelEDR/self_defense_policy.json" ? ca_path = "/etc/SentinelEDR/ca_self.pem" : ca_path = "ca_self.pem";
     std::cerr << "one path: " << ioc_db_path << " " << ca_path << std::endl;
-    // std::cerr << "IOC FOLDER PATH: " << ioc_db_path << " default policy file path: " << DEFAULT_POLICY_FILE_PATH << std::endl;
-    // ioc_db_path = "/var/lib/SentinelEDR/IOC_DB/IOC_DB";
+    std::cerr << "IOC FOLDER PATH: " << ioc_db_path << " default policy file path: " << DEFAULT_POLICY_FILE_PATH << std::endl;
+    // ioc_db_path = "/home/ubuntu/lib/vdt-ajiant-edr/configs/IOC_DB";
     IOCDatabase ioc_db(ioc_db_path);
     // update_database(ioc_db);
     // ioc_db.dump_database_info();
