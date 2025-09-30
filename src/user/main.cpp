@@ -381,10 +381,16 @@ int main() {
     // update_database(ioc_db);
     // ioc_db.dump_database_info();
     
+    // IOCMeta result;
     // std::string hash = calculate_sha256_fast("main_test_block_exe");
     // std::cerr << "hash file: " << hash << std::endl;
+    // if(!hash.empty() && ioc_db.get_file_hash(hash, result)) {
+    //     std::cerr << "File hash found in IOC DB!\n";
+    // } else {
+    //     std::cerr << "File hash NOT found in IOC DB.\n";
+    // }
     // ioc_db.add_file_hash(hash, IOCMeta());
-    IOCMeta result;
+    // IOCMeta result;
     // if(ioc_db.delete_file_hash(calculate_sha256_fast(FILE_TEST_BLOCK_EXE))){
     //     printf("deletet hash success!\n");
     // }

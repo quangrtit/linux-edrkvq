@@ -5,6 +5,12 @@
 #include "utils.h"
 #include "ioc_database.h"
 
+struct ScanResult {
+    bool suspicious = false;
+    int score = 0;
+    std::vector<std::string> reasons;
+};
+ScanResult quick_scan_elf(const std::string& path);
 class ExecutableIOCBlocker {
 public:
     ExecutableIOCBlocker(volatile sig_atomic_t* external_exit, IOCDatabase &db);

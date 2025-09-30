@@ -37,6 +37,9 @@
 #include <libgen.h>
 #include <future>
 #include <cJSON.h>
+#include <optional>
+#include <cmath>
+#include <elf.h>
 #define LOG_MSG_MAX_LEN 128
 #define TASK_COMM_LEN 32
 #define MAX_PATH_LEN 128
@@ -52,8 +55,8 @@
 #define BUFFER_SIZE 1024
 #define MAX_IFACES 16
 #define LIMIT_IP_STORE 50000
-#define LIMIT_FILE_SIZE ((__u64)650 * 1024 * 1024)
-#define TIME_OUT_CHECK_FILE_MS 200 // 200ms
+#define LIMIT_FILE_SIZE ((__u64)500 * 1024 * 1024)
+#define TIME_OUT_CHECK_FILE_MS 500 // 500ms
 #define SERVER_IP "192.168.159.128"
 #define SERVER_PORT "8443"
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
