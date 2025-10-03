@@ -78,11 +78,9 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
             if(it != cache_inode_policy_map_not_malicious.end()) {
                 __u64 ctime_sec = it->second.first;
                 __u64 ctime_nsec = it->second.second;
-                // std::cerr << "have: " << real_path << " " << ctime_sec << " " << ctime_nsec << "\n";
                 struct stat st;
                 if (stat(real_path, &st) == 0) {
                     if(st.st_ctim.tv_sec == ctime_sec && st.st_ctim.tv_nsec == ctime_nsec) {
-                        // std::cerr << "File not changed, skip hash check: " << real_path << "\n";
                         return false; // file not change, not malicious
                     }
                 }
@@ -95,7 +93,6 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
         std::cerr << "File size is zero " << real_path << "\n";
         return false; 
     }
-    // BEGIN: Added ELF heuristic scan
     if (!malicious) {
         // Call quick_scan_elf to check for suspicious ELF structure
         ScanResult elf_result = quick_scan_elf(real_path);
@@ -106,11 +103,6 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
             for (const auto& reason : elf_result.reasons) {
                 std::cerr << " - Reason: " << reason << "\n";
             }
-        }
-        else if(elf_result.score > 0) {
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double, std::milli> elapsed = end - start;
-            std::cerr << "Not Suspicious ELF file: " << real_path << " (Score: " << elf_result.score << ", Time: " << elapsed.count() << " ms)\n";
         }
         // Check if file is large; if so, skip hash check
         if (file_size > LIMIT_FILE_SIZE && elf_result.suspicious) {
@@ -132,22 +124,19 @@ bool ExecutableIOCBlocker::check_exe_malicious(const char* real_path, IOCDatabas
             std::chrono::duration<double, std::milli> elapsed = end - start;        
             std::cerr << "malicious file: " << real_path << " and time to hash file: " << elapsed.count() << " ms\n";
             // get ctime_sec and ctime_nsec
-            
         }
         else {
             struct stat st;
             if (stat(real_path, &st) == 0) {
                 __u64 ctime_sec = st.st_ctim.tv_sec;
                 __u64 ctime_nsec = st.st_ctim.tv_nsec;
-                // std::cerr << "add key: " << real_path << " " << ctime_sec << " " << ctime_nsec << "\n";
                 add_policy(file_key, ctime_sec, ctime_nsec);
             }
         }
     }
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
-    // printf("Time to hash file %s with size %.3f MB: %.3f ms\n", real_path, file_size / (1024.0 * 1024.0), elapsed.count());
-    // std::cerr << "check file: " << real_path << " malicious: " << malicious << " size: " << file_size / (1024.0 * 1024.0) << " MB time: " << elapsed.count() << " ms\n";
+    std::cerr << "check file: " << real_path << " malicious: " << malicious << " size: " << file_size / (1024.0 * 1024.0) << " MB time: " << elapsed.count() << " ms\n";
     return malicious;
 }
 bool ExecutableIOCBlocker::add_mount(const std::string &path, const MountInfo& mount_info) {
