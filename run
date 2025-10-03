@@ -25,21 +25,21 @@ test perfomance:
   ps aux | grep SentinelEDR | grep -v grep
   pidstat -p pid 1
 
-sudo docker cp /home/ubuntu/lib/vdt-ajiant-edr/build/SentinelEDR-1.0.0-linux-x86_64.deb ff902d59b87e:/root/tmp
+sudo docker cp /home/ubuntu/lib/linux-edrkvq/build/SentinelEDR-1.0.0-linux-x86_64.deb ff902d59b87e:/root/tmp
 cmake .. -DDEFAULT_POLICY_FILE_PATH=self_defense_policy.json && make 
 
 trace log: 
   sudo bpftool prog tracelog
   
-sudo LD_PRELOAD=/home/ubuntu/lib/vdt-ajiant-edr/test_environment/attack_test/LD_PRELOAD/hack.so ./SentinelEDR
+sudo LD_PRELOAD=/home/ubuntu/lib/linux-edrkvq/test_environment/attack_test/LD_PRELOAD/hack.so ./SentinelEDR
 echo -n "stop_service" | nc 192.168.159.128 8080
 sudo ls -l /proc/4311/fd | grep socket
 ps -T -p 1234
 
-cp SentinelEDR-1.0.0-linux-x86_64.deb /home/ubuntu/lib/vdt-ajiant-edr/test_environment/build_test && cp install.sh /home/ubuntu/lib/vdt-ajiant-edr/test_environment/build_test && cp uninstall.sh /home/ubuntu/lib/vdt-ajiant-edr/test_environment/build_test
-cp SentinelEDR-1.0.0-linux-x86_64.deb /home/quang/myLib/vdt-ajiant-edr/test_environment/build_test && cp install.sh /home/quang/myLib/vdt-ajiant-edr/test_environment/build_test && cp uninstall.sh /home/quang/myLib/vdt-ajiant-edr/test_environment/build_test
+cp SentinelEDR-1.0.0-linux-x86_64.deb /home/ubuntu/lib/linux-edrkvq/test_environment/build_test && cp install.sh /home/ubuntu/lib/linux-edrkvq/test_environment/build_test && cp uninstall.sh /home/ubuntu/lib/linux-edrkvq/test_environment/build_test
+cp SentinelEDR-1.0.0-linux-x86_64.deb /home/quang/myLib/linux-edrkvq/test_environment/build_test && cp install.sh /home/quang/myLib/linux-edrkvq/test_environment/build_test && cp uninstall.sh /home/quang/myLib/linux-edrkvq/test_environment/build_test
 
-git clone --recurse-submodules git@github.com:quangrtit/vdt-ajiant-edr.git
+git clone --recurse-submodules git@github.com:quangrtit/linux-edrkvq.git
 sudo apt install libssl-dev
 sudo apt-get install liblmdb-dev
 
