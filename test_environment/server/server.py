@@ -7,6 +7,7 @@ ioc_update_ips_list = ["222.255.113.97"] # https://daotao.ptit.edu.vn/
 ioc_delete_file_hashes_list = ["e11ecafd9e8afcec666fdfb89deddbba92f091c29062dc3bee2b053ee5881c98"]
 ioc_delete_ips_list = ["222.255.113.97"]
 
+white_list_pid = []
 def build_ioc(type, file_hashes, ips, source="admin"):
     ts = int(time.time())
     file_hash_objs = [

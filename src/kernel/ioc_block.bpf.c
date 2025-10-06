@@ -333,10 +333,10 @@ int BPF_PROG(bprm_creds_from_file, struct linux_binprm *bprm, struct file *file,
     }
     return 0;
 }
-SEC("kprobe/vfs_write")
-int kprobe__vfs_write(struct pt_regs *ctx)
-{
-    bpf_printk("vfs_write debug\n");
-    return 0;
-}
+// SEC("kprobe/vfs_write")
+// int kprobe__vfs_write(struct pt_regs *ctx)
+// {
+//     bpf_printk("vfs_write debug\n");
+//     return 0;
+// }
 

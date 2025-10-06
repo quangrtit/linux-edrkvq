@@ -13,10 +13,31 @@ struct {
     __uint(max_entries, 1 << 24);
 } debug_events SEC(".maps");
 
+
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u32);          // pid
+    __type(value, u64);        // inode number
+    __uint(max_entries, 2048);
+} pid_to_inode_map SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u64);          // inode
+    __type(value, u32);        // refcount
+    __uint(max_entries, 2048);
+} inode_count_map SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u64);          // inode
+    __type(value, __u8);        
+    __uint(max_entries, 2048);
+} whitelist_inode_map SEC(".maps");
 // map whilelist pid
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 2);
+    __uint(max_entries, LIMIT_PID_WHITE_LIST);
     __type(key, __u32);   // PID
     __type(value, __u8);  // flag = 1
 } whitelist_pid_map SEC(".maps");
@@ -495,7 +516,7 @@ int BPF_PROG(block_task_setnice, struct task_struct *p, int nice)
     if (caller_pid == target_pid) {
         return 0;
     }
-    bpf_printk("check1 %d %d: ", target_pid, caller_pid);
+    // bpf_printk("check1 %d %d: ", target_pid, caller_pid);
     struct process_policy_value *policy = lookup_process_policy(target_pid);
     if (policy && policy->block_setnice) {
         send_debug_log(BLOCKED_ACTION, "[kernel space ptrace_access_check] Blocked limit CPU");
@@ -570,3 +591,64 @@ int BPF_PROG(kernel_read_modulefile,
     return 0;
 }
 
+SEC("tracepoint/sched/sched_process_exec")
+int on_sched_exec(struct trace_event_raw_sched_process_exec *ctx) {
+    u64 pidtgid = bpf_get_current_pid_tgid();
+    u32 pid = (u32)(pidtgid >> 32);
+
+    // try to read current->mm->exe_file->f_inode->i_ino via CO-RE
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct mm_struct *mm = BPF_CORE_READ(task, mm);
+    struct file *exe = NULL;
+    if (mm)
+        exe = BPF_CORE_READ(mm, exe_file);
+    if (!exe) {
+        // fallback: try to read filename from tracepoint payload (ctx->filename)
+        // NOT shown here.
+        return 0;
+    }
+    struct inode *inode = BPF_CORE_READ(exe, f_inode);
+    if (!inode) return 0;
+    u64 ino = BPF_CORE_READ(inode, i_ino);
+
+    // update pid->inode
+    bpf_map_update_elem(&pid_to_inode_map, &pid, &ino, BPF_ANY);
+    bpf_printk("[kernel space] inode exe\n");
+    // increment inode_count_map[ino]
+    u32 zero = 1;
+    u32 *cnt = bpf_map_lookup_elem(&inode_count_map, &ino);
+    if (cnt) {
+        __sync_fetch_and_add(cnt, 1); // pseudocode: atomic increment not available this way
+        // instead: read value, add, update
+        u32 newv = *cnt + 1;
+        bpf_map_update_elem(&inode_count_map, &ino, &newv, BPF_ANY);
+    } else {
+        u32 initv = 1;
+        bpf_map_update_elem(&inode_count_map, &ino, &initv, BPF_ANY);
+    }
+    return 0;
+}
+
+/* tracepoint: sched_process_exit (or sched_process_free) to cleanup */
+SEC("tracepoint/sched/sched_process_exit")
+int on_sched_exit(struct trace_event_raw_sched_process_template *ctx) {
+    u64 pidtgid = bpf_get_current_pid_tgid();
+    u32 pid = (u32)(pidtgid >> 32);
+
+    u64 *ino_p = bpf_map_lookup_elem(&pid_to_inode_map, &pid);
+    if (!ino_p) return 0;
+    u64 ino = *ino_p;
+
+    // decrement inode_count_map[ino]
+    u32 *cntp = bpf_map_lookup_elem(&inode_count_map, &ino);
+    if (cntp) {
+        u32 newv = (*cntp > 0) ? (*cntp - 1) : 0;
+        if (newv == 0)
+            bpf_map_delete_elem(&inode_count_map, &ino);
+        else
+            bpf_map_update_elem(&inode_count_map, &ino, &newv, BPF_ANY);
+    }
+    bpf_map_delete_elem(&pid_to_inode_map, &pid);
+    bpf_printk("[kernel space] clear inode exe\n");
+    return 0;
+}
