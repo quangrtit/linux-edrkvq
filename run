@@ -76,3 +76,6 @@ sudo wget https://sourceforge.net/projects/boost/files/boost/1.83.0/boost_1_83_0
     ./bootstrap.sh --prefix=/usr/local --with-libraries=system,thread && \
     ./b2 link=static runtime-link=static -j$(nproc) install && \
     cd .. && rm -rf boost_1_83_0
+
+sudo bpftool map show
+sudo bpftool map dump id 274

@@ -57,7 +57,7 @@
 #define LIMIT_IP_STORE 50000
 #define LIMIT_FILE_SIZE ((__u64)50 * 1024 * 1024)
 #define TIME_OUT_CHECK_FILE_MS 500 // 500ms
-#define SERVER_IP "192.168.159.128"
+#define SERVER_IP "192.168.153.128"
 #define SERVER_PORT "8443"
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
 
@@ -118,6 +118,11 @@ struct file_policy_value {
     bool block_hardlink_create;
 };
 
+struct whitelists_process_policy_value {
+    char path[MAX_PATH_LEN];
+    __s64 inode;
+    bool allow_exe;
+};
 typedef __u32 process_policy_key_t;
 struct process_policy_value {
     __u32 pid; 

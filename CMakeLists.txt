@@ -37,6 +37,7 @@ ExternalProject_Add(bpftool
 )
 
 # --- Boost (static) setup ---
+cmake_policy(SET CMP0167 OLD)
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME ON)

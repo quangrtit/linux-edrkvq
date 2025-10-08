@@ -18,7 +18,9 @@ int apply_fileless_lock_policy(struct ioc_block_bpf *skel, const uint32_t value)
 
 int apply_disable_module_autoload_policy(struct self_defense_bpf *skel, const uint32_t value);
 
-int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf* skel_ioc, const char *json_filepath);
+int apply_whitelists_process_policy(struct self_defense *skel, struct whitelists_process_policy_value* value);
+
+int load_and_apply_policies(struct self_defense_bpf *skel_self, struct ioc_block_bpf* skel_ioc, const char *json_filepath);
 
 
 

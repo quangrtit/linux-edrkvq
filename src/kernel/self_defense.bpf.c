@@ -31,7 +31,7 @@ struct {
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, u64);          // inode
-    __type(value, __u8);        
+    __type(value, u32);        
     __uint(max_entries, 2048);
 } whitelist_inode_map SEC(".maps");
 // map whilelist pid
@@ -451,6 +451,11 @@ int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int 
     __u32 tgid = BPF_CORE_READ(p, tgid);
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
 
+    u32 *flag_wl = bpf_map_lookup_elem(&inode_count_map, &pid);
+    if(flag_wl && *flag_wl == 1) {
+        bpf_printk("[kernel space task kill] allow that process kill");
+        return 0;
+    }
     // if (flag && *flag == 1) {
     //     return 0;  
     // }
@@ -607,13 +612,25 @@ int on_sched_exec(struct trace_event_raw_sched_process_exec *ctx) {
         // NOT shown here.
         return 0;
     }
+
     struct inode *inode = BPF_CORE_READ(exe, f_inode);
     if (!inode) return 0;
-    u64 ino = BPF_CORE_READ(inode, i_ino);
+    u64 ino_ = BPF_CORE_READ(inode, i_ino);
+    struct super_block *sb = BPF_CORE_READ(inode, i_sb);
+    if (!sb)
+        return 0;
+    dev_t dev = BPF_CORE_READ(sb, s_dev);
+    __u64 ino = ((__u64)dev << 32) | (__u64)ino_;
 
+    u32* inode_allow = bpf_map_lookup_elem(&whitelist_inode_map, &ino);
+    if(inode_allow == NULL) {
+        return 0;
+    }
+    if (*inode_allow != 1) {
+        return 0;
+    }
     // update pid->inode
     bpf_map_update_elem(&pid_to_inode_map, &pid, &ino, BPF_ANY);
-    bpf_printk("[kernel space] inode exe\n");
     // increment inode_count_map[ino]
     u32 zero = 1;
     u32 *cnt = bpf_map_lookup_elem(&inode_count_map, &ino);
@@ -623,7 +640,7 @@ int on_sched_exec(struct trace_event_raw_sched_process_exec *ctx) {
         u32 newv = *cnt + 1;
         bpf_map_update_elem(&inode_count_map, &ino, &newv, BPF_ANY);
     } else {
-        u32 initv = 1;
+        u32 initv = 2;
         bpf_map_update_elem(&inode_count_map, &ino, &initv, BPF_ANY);
     }
     return 0;
@@ -649,6 +666,6 @@ int on_sched_exit(struct trace_event_raw_sched_process_template *ctx) {
             bpf_map_update_elem(&inode_count_map, &ino, &newv, BPF_ANY);
     }
     bpf_map_delete_elem(&pid_to_inode_map, &pid);
-    bpf_printk("[kernel space] clear inode exe\n");
+    // bpf_printk("[kernel space] clear inode exe\n");
     return 0;
 }

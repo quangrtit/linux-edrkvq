@@ -5,10 +5,10 @@ req_extensions     = req_ext
 prompt = no
 
 [req_distinguished_name]
-CN = 192.168.159.128
+CN = 192.168.153.128
 
 [req_ext]
 subjectAltName = @alt_names
 
 [alt_names]
-IP.1 = 192.168.159.128
+IP.1 = 192.168.153.128

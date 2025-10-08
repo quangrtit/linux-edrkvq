@@ -7,6 +7,7 @@
 #include <iostream>
 #include "common_user.h"
 #include "policy_manager.h"
+#include "utils.h"
 #include "cJSON.h"
 #include <sys/sysmacros.h>
 
@@ -132,6 +133,16 @@ int apply_disable_module_autoload_policy(struct self_defense_bpf *skel, const ui
         fprintf(stderr, "[user space policy_manager.cpp] Failed to apply process policy for PID %d: %s\n", value, strerror(errno));
         return err;
     }
+    return 0;
+}
+int apply_whitelists_process_policy(struct self_defense_bpf *skel, struct whitelists_process_policy_value* value) {
+    if(value->inode == -1) {
+        value->inode = get_inode_key(value->path);
+    }
+    __u64 key = value->inode;
+    uint32_t value_maps;
+    value->allow_exe == true ? value_maps = 1 : value_maps = 0;
+    int err = bpf_map__update_elem(skel->maps.whitelist_inode_map, &key, sizeof(key), &value_maps, sizeof(value_maps), BPF_ANY);
     return 0;
 }
 int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf* skel_ioc, const char *json_filepath) {
@@ -294,6 +305,39 @@ int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf*
             apply_disable_module_autoload_policy(skel, policy_val);
         }
     }
+    // rule whitelists process 
+    cJSON *whitelists_process_rules = cJSON_GetObjectItemCaseSensitive(root, "whitelists_process");
+    if (cJSON_IsArray(whitelists_process_rules)) {
+        cJSON *rule_item = NULL;
+        cJSON_ArrayForEach(rule_item, whitelists_process_rules) {
+            cJSON *path_json = cJSON_GetObjectItemCaseSensitive(rule_item, "path");
+            if (!cJSON_IsString(path_json) || (path_json->valuestring == NULL)) {
+                fprintf(stderr, "[user space policy_manager.cpp] Warning: 'path' not found or not a string in a whitelist process rule. Skipping.\n");
+                continue;
+            }
+            const char *path = path_json->valuestring;
+
+            struct whitelists_process_policy_value policy = {0};
+            cJSON *dentry_json = cJSON_GetObjectItemCaseSensitive(rule_item, "path");
+            if (cJSON_IsString(dentry_json) && dentry_json->valuestring != NULL) {
+                memset(&policy.path, 0, sizeof(policy.path));
+                strncpy(policy.path, dentry_json->valuestring, sizeof(policy.path) - 1);
+                policy.path[sizeof(policy.path) - 1] = '\0';  
+            }
+            policy.allow_exe = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(rule_item, "allow_exe"));
+            cJSON *inode_item = cJSON_GetObjectItemCaseSensitive(rule_item, "inode");
+            if (cJSON_IsString(inode_item) && inode_item->valuestring) {
+                policy.inode = strtoll(inode_item->valuestring, NULL, 10);
+            } else if (cJSON_IsNumber(inode_item)) {
+                policy.inode = (__s64)inode_item->valuedouble;
+            }
+            apply_whitelists_process_policy(skel, &policy);
+            std::cerr << std::string(policy.path) << " ---- > " << policy.inode << "end whitelist\n";
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%lld", (long long)policy.inode);
+            cJSON_ReplaceItemInObject(rule_item, "inode", cJSON_CreateString(buf));
+        } 
+    }
     // whitelist pid 
     __u32 pid = getpid();  
     __u8 flag = 1;
@@ -306,7 +350,7 @@ int load_and_apply_policies(struct self_defense_bpf *skel, struct ioc_block_bpf*
     char *updated_json = cJSON_Print(root);
     fp = fopen(json_filepath, "w");
     if (!fp) {
-        perror("fopen write 1 1 1 1 1");
+        perror("fopen write failed!!!!");
         cJSON_Delete(root);
         free(json_string);
         free(updated_json);
