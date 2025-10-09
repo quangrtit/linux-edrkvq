@@ -442,24 +442,35 @@ int BPF_PROG(block_mmap_file, struct file *file, unsigned long reqprot,
 SEC("lsm/task_kill")
 int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
 {
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    u32 sender_pid = pid_tgid >> 32;
+    u32 sender_tgid = pid_tgid & 0xffffffff;
+
+    u32 target_pid = BPF_CORE_READ(p, pid);
+    u32 target_tgid = BPF_CORE_READ(p, tgid);
+
+    // bpf_printk("signal %d: sender pid=%d (tgid=%d) -> target pid=%d (tgid=%d)\n",
+    //            sig, sender_pid, sender_tgid, target_pid, target_tgid);
     // return 0;
     char* comm = BPF_CORE_READ(p, comm);
     // if(bpf_strncmp(comm, sizeof(comm), "edr_main") == 0) {
     //     send_debug_log(INFO, comm);
     // }
-    __u32 pid = BPF_CORE_READ(p, pid);
-    __u32 tgid = BPF_CORE_READ(p, tgid);
+    __u32 pid = (__u32)sender_pid;
+    __u32 tgid = (__u32)target_pid;
     __u8 *flag = bpf_map_lookup_elem(&whitelist_pid_map, &pid);
-
-    u32 *flag_wl = bpf_map_lookup_elem(&inode_count_map, &pid);
-    if(flag_wl && *flag_wl == 1) {
+    // bpf_printk("[kernel debug log] pid: %d tgid: %d\n", pid, tgid);
+    u32 *flag_wl = bpf_map_lookup_elem(&pid_to_inode_map, &pid);
+    // if(flag_wl == NULL) {
+    //     bpf_printk("[kernel space task kill] debug whitelist flag_wl is NULL \n");
+    // }
+    // else {
+    //     bpf_printk("[kernel space task kill] debug whitelist flag_wl: %d\n", *flag_wl);
+    // }
+    if(flag_wl && *flag_wl >= 1) {
         bpf_printk("[kernel space task kill] allow that process kill");
         return 0;
     }
-    // if (flag && *flag == 1) {
-    //     return 0;  
-    // }
-    // bpf_printk("have all pid %d %d\n", pid, tgid);
     struct process_policy_value *policy = lookup_process_policy(pid);
     if (!policy) {
         policy = lookup_process_policy(tgid);
