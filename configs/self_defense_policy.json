@@ -1,7 +1,7 @@
 {
   "file_protection_rules": [
     {
-      "path": "/home/quang/lib/linux-edrkvq/test_environment/attack_test/test_file_vcs1.txt",
+      "path": "/home/ubuntu/lib/linux-edrkvq/test_environment/attack_test/test_file_vcs1.txt",
       "inode": -1,
       "inode_symlink": -1,
       "block_read": false,
@@ -119,7 +119,7 @@
   "disable_module_autoload_rules": true,
   "whitelists_process": [
     {
-      "path": "/home/quang/lib/linux-edrkvq/test_environment/tmp/white_list",
+      "path": "/home/ubuntu/lib/linux-edrkvq/test_environment/tmp/white_list",
       "inode": -1,
       "allow_exe": true
     }

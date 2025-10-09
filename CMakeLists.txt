@@ -37,7 +37,9 @@ ExternalProject_Add(bpftool
 )
 
 # --- Boost (static) setup ---
-cmake_policy(SET CMP0167 OLD)
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME ON)
@@ -176,12 +178,6 @@ configure_file("${CMAKE_SOURCE_DIR}/configs/self_defense_policy.json"
                COPYONLY)
 configure_file("${CMAKE_SOURCE_DIR}/configs/SentinelEDR.service"
                "${CMAKE_BINARY_DIR}/SentinelEDR.service"
-               COPYONLY)
-configure_file("${CMAKE_SOURCE_DIR}/install.sh"
-               "${CMAKE_BINARY_DIR}/install.sh"
-               COPYONLY)
-configure_file("${CMAKE_SOURCE_DIR}/uninstall.sh"
-               "${CMAKE_BINARY_DIR}/uninstall.sh"
                COPYONLY)
 # test file IOC block exe
 configure_file("${CMAKE_SOURCE_DIR}/test_environment/tmp/main"

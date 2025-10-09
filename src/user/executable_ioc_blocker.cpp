@@ -280,7 +280,7 @@ void ExecutableIOCBlocker::loop() {
                     }
                 } 
                 else {
-            
+
                     response.response = FAN_ALLOW;
                 }
                 if (write(fan_fd, &response, sizeof(response)) < 0) {
@@ -315,7 +315,6 @@ static bool is_absolute(const std::string &p) {
 }
 
 static bool is_suspicious_library(const std::string &lib) {
-    // Chỉ flag những thứ thực sự nguy hiểm
     if (lib.find("/tmp/") != std::string::npos) return true;
     if (lib.find("/dev/shm/") != std::string::npos) return true;
     if (lib.find(".evil") != std::string::npos) return true;
@@ -381,8 +380,6 @@ ScanResult quick_scan_elf(const std::string &path) {
         close(fd);
         return res;
     }
-
-    // Chỉ flag nếu file trong thư mục thực sự nguy hiểm
     if (path_has_bad_substr(path)) {
         add_reason(res, "File in suspicious location (/tmp, /var/tmp, /dev/shm)", 30);
     }

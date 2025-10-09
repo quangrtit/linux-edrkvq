@@ -57,7 +57,7 @@
 #define LIMIT_IP_STORE 50000
 #define LIMIT_FILE_SIZE ((__u64)50 * 1024 * 1024)
 #define TIME_OUT_CHECK_FILE_MS 500 // 500ms
-#define SERVER_IP "192.168.153.128"
+#define SERVER_IP "192.168.159.128"
 #define SERVER_PORT "8443"
 #define BASE_POLICY_DIR "/var/lib/SentinelEDR"
 

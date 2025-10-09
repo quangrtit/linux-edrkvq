@@ -5,4 +5,5 @@
 /configs/IOC_DB/
 /tools
 /test_environment/attack_test/disable_module_loader/build
-/curl 
+/configs/ca_self.pem
+/configs/ca.pem 

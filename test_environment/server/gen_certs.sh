@@ -65,5 +65,5 @@ echo "CA cert   : $(pwd)/ca.pem"
 echo "Server key: $(pwd)/server.key"
 echo "Server crt: $(pwd)/server.crt"
 
-cp ca.pem /home/quang/lib/linux-edrkvq/configs/ca_self.pem
+cp ca.pem /home/ubuntu/lib/linux-edrkvq/configs/ca_self.pem
 cd ..
