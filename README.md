@@ -1,6 +1,6 @@
 # Linux Behavior Blocking Module (eBPF-based EDR)
 
-This project focuses on researching and developing an Endpoint Detection and Response (EDR) module for Linux. By leveraging the power of **eBPF (Extended Berkeley Packet Filter)** and **LSM (Linux Security Modules)**, the system provides real-time monitoring and blocking of malicious behaviors with high performance and minimal system impact.
+This project focuses on researching and developing an Endpoint Detection and Response (EDR) module for Linux. By leveraging the power of **eBPF (Extended Berkeley Packet Filter)** and **LSM (Linux Security Modules)**, the system provides real-time monitoring and blocking of malicious behaviors with high performance and minimal system impact. (final_report.pptx.pdf for more information)
 
 ## Key Features
 
